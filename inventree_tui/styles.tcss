@@ -1,0 +1,20 @@
+Input {
+    border: round #888888;
+}
+
+Button {
+    width: 100%;
+}
+
+#done_button {
+    background: green;
+    color: white;
+}
+
+#cancel_button {
+    background: red;
+    color: white;
+}
+.readonly {
+    color: $text-muted;
+}
