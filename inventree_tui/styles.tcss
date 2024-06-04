@@ -6,15 +6,71 @@ Button {
     width: 100%;
 }
 
-#done_button {
-    background: green;
-    color: white;
+ErrorDialogScreen {
+  align: center middle;
+  background: rgba(128,0,0,0.0);
 }
 
+#error-dialog {
+  background: $primary-background-darken-1;
+  max-width: 60%;
+  height: auto;
+  padding-left: 1;
+  padding-right: 1;
+  border: round $warning-lighten-3;
+}
+
+#button-bar > Button {
+  width: 1fr;
+  margin-right:1;
+}
+
+#button-bar {
+  height: auto;
+  margin-bottom:1;
+}
+
+#status-text {
+
+}
+
+
+#error-dialog Button {
+  margin-top: 1;
+}
+
+$red: red;
+$green: green
+
+#done_button {
+    background: $green;
+    color: $text;
+}
+
+
 #cancel_button {
-    background: red;
-    color: white;
+    background: $red;
+    color: $text;
 }
 .readonly {
     color: $text-muted;
+}
+
+#transfer-items-table > .datatable--odd-row {
+  background: $primary-background-darken-1;
+}
+#transfer-items-table > .datatable--even-row {
+  background: $background;
+}
+
+#transfer-items-table:focus > .datatable--cursor {
+  background: $secondary-lighten-3;
+}
+
+#transfer-items-table > .datatable--cursor {
+  background: $secondary-darken-3;
+}
+
+#transfer-items-table {
+  width: 100%;
 }
