@@ -1,3 +1,4 @@
+import logging
 from inventree.stock import StockItem, StockLocation
 from requests.exceptions import RequestException
 from inventree.part import Part
@@ -6,7 +7,7 @@ import json
 from dotenv import load_dotenv
 from inventree.api import InvenTreeAPI
 
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, PrivateAttr, ValidationError
 from pydantic.fields import Field, FieldInfo
 from typing import List, Type, Any
 
@@ -31,12 +32,52 @@ class RowBaseModel(BaseModel):
 
         return field_names
 
-class CachedStockItemRowModel(RowBaseModel):
-    stock_number: int
-    part_name: str
-    quantity: int
-    current_location: str
+    @classmethod
+    def get_editable_fields(cls, by_alias=True) -> list[str]:
+        field_names = []
+        for k, v in cls.__fields__.items():
+            name = None
+            if by_alias and isinstance(v, FieldInfo) and v.alias is not None:
+                name = v.alias
+            else:
+                name = k
 
+            logging.info(f"FIELD {k} : {v} : {type(v)}")
+            if v.frozen == False:
+                field_names.append(name)
+
+        return field_names
+
+    @classmethod
+    def field_display_name(cls, field: str) -> str:
+        return field
+
+    # Used for updating internal data after modification 
+    def update(self, other, validate=False):
+        NotImplementedError(f"update(other) has not been implemented for {self.__class__}");
+
+    def title_name(self):
+        NotImplementedError(f"title_name() has not been implemented for {self.__class__}");
+
+
+class CachedStockItemRowModel(RowBaseModel):
+    stock_number: int = Field(frozen=True) 
+    part_name: str = Field(frozen=True)
+    quantity: int = Field(frozen=False)
+    current_location: str = Field(frozen=True)
+
+    def title_name(self):
+        return f"Stock #{self.stock_number}"
+
+    @classmethod
+    def field_display_name(cls, field: str) -> str:
+        d = {
+            "stock_number": "Stock Number",
+            "part_name":"Part Name",
+            "quantity":"Quantity",
+            "current_location":"Current Location",
+        }
+        return d[field]
 
 class CachedStockItem():
     _stock_item: StockItem
@@ -80,6 +121,10 @@ class CachedStockItem():
         if self._quantity is None:
             return self._stock_item.quantity
         return self._quantity
+
+    @quantity.setter
+    def quantity(self, q):
+        self._quantity = q
 
     def __hash__(self):
         return hash(self._stock_item.pk)
@@ -131,19 +176,33 @@ def scanBarcode(text, whitelist=None):
     return item
 
 class CachedStockItemRow(CachedStockItemRowModel):
-    _cached_stock_item: CachedStockItem = PrivateAttr()
+    _cached_stock_item: CachedStockItem = PrivateAttr(default=None)
 
     def __hash__(self):
         return hash(self._cached_stock_item)
 
-    def __init__(self, cached_stock_item: CachedStockItem):
-        super().__init__(
-            stock_number=cached_stock_item._stock_item.pk,
-            part_name=cached_stock_item.part.name,
-            quantity=cached_stock_item.quantity,
-            current_location=cached_stock_item.stock_location.name
-        )
-        self._cached_stock_item=cached_stock_item
+    def __init__(self, cached_stock_item: CachedStockItem = None, **kwargs):
+        if cached_stock_item is not None:
+            super().__init__(
+                stock_number=cached_stock_item._stock_item.pk,
+                part_name=cached_stock_item.part.name,
+                quantity=cached_stock_item.quantity,
+                current_location=cached_stock_item.stock_location.name
+            )
+            self._cached_stock_item=cached_stock_item
+        else:
+            super().__init__(**kwargs)
+
+    def update(self, other, validate=False, allow_greater=False):
+        if validate:
+            oq = self._cached_stock_item._stock_item.quantity
+            if not allow_greater and other.quantity > oq:
+                raise ValueError(f"Quantity is greater than the original stock quantity ({oq})")
+
+        self.quantity = other.quantity
+        self._cached_stock_item.quantity = other.quantity
+
+        return True
 
     @property
     def item(self):

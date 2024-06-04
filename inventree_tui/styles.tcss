@@ -20,14 +20,16 @@ ErrorDialogScreen {
   border: round $warning-lighten-3;
 }
 
-#button-bar > Button {
+.button-bar > Button {
   width: 1fr;
-  margin-right:1;
 }
 
-#button-bar {
+.button-bar > Static {
+  width: 1;
+}
+
+.button-bar {
   height: auto;
-  margin-bottom:1;
 }
 
 #status-text {
@@ -73,4 +75,44 @@ $green: green
 
 #transfer-items-table {
   width: 100%;
+}
+
+#row-edit-dialog {
+  background: $primary-background-darken-1;
+  max-width: 60%;
+  height: auto;
+  padding-left: 1;
+  padding-right: 1;
+  border: round $warning-lighten-3;
+}
+
+#row-edit-dialog > .input_row {
+  height: auto;
+  width: 100%;
+}
+
+
+#row-edit-dialog > .input_row > Label {
+  margin-right: 1;
+  padding-top: 1;
+  width: auto;
+}
+
+#row-edit-dialog > .input_row > Input {
+  background: rgba(0,0,0,0.0);
+  width: 1fr;
+  padding-left: 1;
+}
+
+RowEditScreen {
+  align: center middle;
+  background: rgba(0,0,0,0.0);
+}
+
+#row-edit-dialog > .error-msg {
+  margin-bottom: 1;
+}
+
+.error-msg {
+  color: red;
 }
