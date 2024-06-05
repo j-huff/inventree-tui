@@ -1,5 +1,6 @@
 Input {
-    border: round #888888;
+  border: round #888888;
+  background: rgba(0,0,0,0.0);
 }
 
 Button {
@@ -8,7 +9,17 @@ Button {
 
 ErrorDialogScreen {
   align: center middle;
-  background: rgba(128,0,0,0.0);
+  background: rgba(0,0,0,0.0);
+}
+
+TabbedContent {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+TabPane {
+  padding-left: 1;
+  padding-right: 1;
 }
 
 #error-dialog {
@@ -32,10 +43,9 @@ ErrorDialogScreen {
   height: auto;
 }
 
-#status-text {
-
+.status_text {
+  margin-top: 1;
 }
-
 
 #error-dialog Button {
   margin-top: 1;
@@ -104,7 +114,26 @@ $green: green
   padding-left: 1;
 }
 
+#checkin-dialog {
+  background: $primary-background-darken-1;
+  max-width: 60%;
+  height: auto;
+  padding-left: 1;
+  padding-right: 1;
+  border: round $warning-lighten-3;
+}
+
+#checkin-dialog > .dialog-question {
+  margin-top:1;
+  margin-bottom:1;
+}
+
 RowEditScreen {
+  align: center middle;
+  background: rgba(0,0,0,0.0);
+}
+
+CheckInScreen {
   align: center middle;
   background: rgba(0,0,0,0.0);
 }
@@ -115,4 +144,14 @@ RowEditScreen {
 
 .error-msg {
   color: red;
+}
+
+.table-title {
+  padding-left: 1;
+  padding-right: 1;
+  border-left: round #888888;
+  border-top: round #888888;
+  border-right: round #888888;
+  border-bottom: solid #888888;
+  width: auto;
 }

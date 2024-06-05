@@ -82,6 +82,9 @@ class CachedStockItemRowModel(RowBaseModel):
 class CachedStockItem():
     _stock_item: StockItem
 
+    def title_name(self):
+        return f"Stock #{self._stock_item.pk}"
+
     def __init__(self, _stock_item: StockItem):
         self._stock_item = _stock_item
         self._part = None
@@ -175,6 +178,7 @@ def scanBarcode(text, whitelist=None):
             raise ApiException(f"{body['error']}")
     return item
 
+
 class CachedStockItemRow(CachedStockItemRowModel):
     _cached_stock_item: CachedStockItem = PrivateAttr(default=None)
 
@@ -188,6 +192,62 @@ class CachedStockItemRow(CachedStockItemRowModel):
                 part_name=cached_stock_item.part.name,
                 quantity=cached_stock_item.quantity,
                 current_location=cached_stock_item.stock_location.name
+            )
+            self._cached_stock_item=cached_stock_item
+        else:
+            super().__init__(**kwargs)
+
+    def update(self, other, validate=False, allow_greater=False):
+        if validate:
+            oq = self._cached_stock_item._stock_item.quantity
+            if not allow_greater and other.quantity > oq:
+                raise ValueError(f"Quantity is greater than the original stock quantity ({oq})")
+
+        self.quantity = other.quantity
+        self._cached_stock_item.quantity = other.quantity
+
+        return True
+
+    @property
+    def item(self):
+        return self._cached_stock_item
+
+
+class CachedStockItemCheckInRowModel(RowBaseModel):
+    stock_number: int = Field(frozen=True) 
+    part_name: str = Field(frozen=True)
+    quantity: int = Field(frozen=True)
+    previous_location: str = Field(frozen=True)
+    new_location: str = Field(frozen=True)
+
+    def title_name(self):
+        return f"Stock #{self.stock_number}"
+
+    @classmethod
+    def field_display_name(cls, field: str) -> str:
+        d = {
+            "stock_number": "Stock Number",
+            "part_name":"Part Name",
+            "quantity":"Quantity",
+            "previous_location":"Previous Location",
+            "new_location":"New Location",
+        }
+        return d[field]
+
+class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
+    _cached_stock_item: CachedStockItem = PrivateAttr(default=None)
+
+    def __hash__(self):
+        return hash(self._cached_stock_item)
+
+    def __init__(self, cached_stock_item: CachedStockItem = None, **kwargs):
+        if cached_stock_item is not None:
+            super().__init__(
+                stock_number=cached_stock_item._stock_item.pk,
+                part_name=cached_stock_item.part.name,
+                quantity=cached_stock_item.quantity,
+                previous_location=cached_stock_item.stock_location.name,
+                new_location=cached_stock_item.default_location.name
             )
             self._cached_stock_item=cached_stock_item
         else:
