@@ -54,16 +54,6 @@ TabPane {
 $red: red;
 $green: green
 
-#done_button {
-    background: $green;
-    color: $text;
-}
-
-
-#cancel_button {
-    background: $red;
-    color: $text;
-}
 .readonly {
     color: $text-muted;
 }

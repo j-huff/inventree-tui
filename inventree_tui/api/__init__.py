@@ -174,7 +174,14 @@ def scanBarcode(text, whitelist=None):
         if e.response is not None:
             raise ApiException(f"{e.response.status_code}")
         else:
-            body = json.loads(e.args[0]['body'])
+            status = json.loads(e.args[0]['status'])
+            if status != 200:
+                raise ApiException(f"Status Code {status}")
+            try:
+                body = json.loads(e.args[0]['body'])
+            except json.JSONDecodeError:
+                raise ApiException(f"failed to decode body")
+
             raise ApiException(f"{body['error']}")
     return item
 

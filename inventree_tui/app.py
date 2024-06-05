@@ -311,9 +311,9 @@ class TransferItemsTab(Container):
                 zebra_stripes=True,
             )
         with Horizontal (classes="button-bar"):
-            yield Button("Done", id="transfer_done_button", variant="success")
+            yield Button("Done", id="transfer_done_button", variant="primary")
             yield Static(" ")
-            yield Button("Cancel", id="cancel_button", variant="error")
+            yield Button("Cancel", id="cancel_button", variant="default")
         yield Static("Status Ok",id="transfer_status_text", classes="status_text")
 
     async def on_mount(self):
@@ -408,7 +408,7 @@ class CheckInItemsTab(Container):
                 zebra_stripes=True,
             )
         with Horizontal (classes="button-bar"):
-            yield Button("Clear History", id="checkin_clear_button", variant="success")
+            yield Button("Clear History", id="checkin_clear_button", variant="primary")
         yield Static("Status Ok",id="checkin_status_text", classes="status_text")
 
     async def on_mount(self):
