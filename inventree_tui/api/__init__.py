@@ -1,21 +1,17 @@
+
 import logging
 from inventree.stock import StockItem, StockLocation
 from requests.exceptions import RequestException
 from inventree.part import Part
-import os
 import json
-from dotenv import load_dotenv
-from inventree.api import InvenTreeAPI
 
 from pydantic import BaseModel, PrivateAttr, ValidationError
 from pydantic.fields import Field, FieldInfo
 from typing import List, Type, Any
-
-load_dotenv()
-
-host = os.environ.get("INVENTREE_API_HOST")
-token = os.environ.get("INVENTREE_API_TOKEN")
-api = InvenTreeAPI(host=host, token=token)
+from datetime import datetime
+from .base import api
+from .part_search import part_search, CachedPart
+from .stock_item import CachedStockItem
 
 class ApiException(Exception):
     pass
@@ -79,64 +75,6 @@ class CachedStockItemRowModel(RowBaseModel):
         }
         return d[field]
 
-class CachedStockItem():
-    _stock_item: StockItem
-
-    def title_name(self):
-        return f"Stock #{self._stock_item.pk}"
-
-    def __init__(self, _stock_item: StockItem):
-        self._stock_item = _stock_item
-        self._part = None
-        self._default_location = None
-        self._quantity = None
-        self._stock_location = None
-        self._destination = None
-
-    def transfer(self, destination=None):
-        if destination is not None:
-            self._destination = destination
-        if self._destination is None:
-            raise Exception("Cannot transfer, no destination")
-        transfer_items([self], self._destination)
-
-    @property
-    def part(self) -> Part:
-        if self._part == None:
-            self._part = self._stock_item.getPart()
-        return self._part
-
-    @property
-    def default_location(self) -> StockLocation:
-        default_location_pk = self.part.default_location
-        if default_location_pk is None:
-            return None
-        return StockLocation(api, default_location_pk)
-
-    @property
-    def stock_location(self) -> StockLocation:
-        if self._stock_location is None:
-            self._stock_location = self._stock_item.getLocation()
-        return self._stock_location
-
-    @property
-    def quantity(self):
-        if self._quantity is None:
-            return self._stock_item.quantity
-        return self._quantity
-
-    @quantity.setter
-    def quantity(self, q):
-        self._quantity = q
-
-    def __hash__(self):
-        return hash(self._stock_item.pk)
-
-    def __eq__(self, other):
-        if isinstance(other, CachedStockItem):
-            return self._stock_item.pk == self._stock_item.pk
-        return False
-
 def transfer_items(items: List[CachedStockItem], location: StockLocation):
     _items = []
     for item in items:
@@ -174,7 +112,7 @@ def scanBarcode(text, whitelist=None):
         if e.response is not None:
             raise ApiException(f"{e.response.status_code}")
         else:
-            status = json.loads(e.args[0]['status'])
+            status = json.loads(e.args[0]['status_code'])
             if status != 200:
                 raise ApiException(f"Status Code {status}")
             try:
@@ -226,6 +164,7 @@ class CachedStockItemCheckInRowModel(RowBaseModel):
     quantity: int = Field(frozen=True)
     previous_location: str = Field(frozen=True)
     new_location: str = Field(frozen=True)
+    timestamp: datetime = Field(frozen=True)
 
     def title_name(self):
         return f"Stock #{self.stock_number}"
@@ -233,11 +172,12 @@ class CachedStockItemCheckInRowModel(RowBaseModel):
     @classmethod
     def field_display_name(cls, field: str) -> str:
         d = {
-            "stock_number": "Stock Number",
+            "stock_number": "Stock#",
             "part_name":"Part Name",
-            "quantity":"Quantity",
-            "previous_location":"Previous Location",
-            "new_location":"New Location",
+            "quantity":"Q",
+            "previous_location":"Prev Loc",
+            "new_location":"New Loc",
+            "timestamp":"Check-In Timestamp",
         }
         return d[field]
 
@@ -245,7 +185,8 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
     _cached_stock_item: CachedStockItem = PrivateAttr(default=None)
 
     def __hash__(self):
-        return hash(self._cached_stock_item)
+        # This will allow for repeats
+        return hash(self._cached_stock_item._stock_item)
 
     def __init__(self, cached_stock_item: CachedStockItem = None, **kwargs):
         if cached_stock_item is not None:
@@ -254,7 +195,8 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
                 part_name=cached_stock_item.part.name,
                 quantity=cached_stock_item.quantity,
                 previous_location=cached_stock_item.stock_location.name,
-                new_location=cached_stock_item.default_location.name
+                new_location=cached_stock_item.default_location.name,
+                timestamp=datetime.now(),
             )
             self._cached_stock_item=cached_stock_item
         else:

@@ -16,6 +16,9 @@ from textual.message import Message
 from typing import List, Type, Any, Set
 from pydantic import ValidationError
 
+from .part_search import PartSearchTab
+from .error_screen import IgnorableErrorEvent, ErrorDialogScreen
+
 
 logging.basicConfig(
     level="NOTSET",
@@ -89,10 +92,12 @@ class ModelDataTable(DataTable):
             data = self.data
         #self.clear()
         columns = self.model_class.get_field_names()
+        needs_sorted = False
         for obj in data:
             if RowKey(value=obj) not in self.rows:
                 values = [getattr(obj, col) for col in columns]
                 self.add_row(*values, key=obj)
+                needs_sorted = True
 
         keys = list(self.rows.keys())
         for row_key in keys:
@@ -103,8 +108,15 @@ class ModelDataTable(DataTable):
             cells = self.get_row(row_key)
             for col_key in self.columns.keys():
                 if col_key != "delete_button":
-                    self.update_cell(row_key, col_key, value=getattr(row_key.value, col_key.value))
-                    logging.info(f"UPDATING CELL: {row_key.value} {col_key.value}")
+                    current_value = self.get_cell(row_key, col_key)
+                    new_value = getattr(row_key.value, col_key.value)
+                    if current_value != new_value:
+                        needs_sorted = True
+                        logging.info(f"VALUE CHANGED {current_value} -> {new_value}")
+                        self.update_cell(row_key, col_key, value=new_value)
+                        logging.info(f"UPDATING CELL: {row_key.value} {col_key.value}")
+        if needs_sorted:
+            self.sort(self.sort_column_key, reverse=True)
 
     async def on_data_table_row_selected(self, message: DataTable.RowSelected):
         #TODO: Add stock splitting to allow the row editor
@@ -125,13 +137,6 @@ class ModelDataTable(DataTable):
             self.move_cursor(row=self.cursor_row-1)
             await self.update()
 
-
-class IgnorableErrorEvent(Event):
-    def __init__(self, sender, title, message):
-        super().__init__()
-        self.sender = sender
-        self.title = title
-        self.message = message
 
 class CheckInBeginEvent(Event):
     def __init__(self, item):
@@ -161,19 +166,6 @@ class LabeledText(Widget):
         self.text = placeholder
     def compose(self) -> ComposeResult:
         yield Label(f"{self.label}: {self.text}")
-
-class ErrorDialogScreen(Screen):
-    title = reactive("")
-    exception_message = reactive("")
-
-    def compose(self) -> ComposeResult:
-        with Container(id="error-dialog") as container:
-            container.border_title = self.title
-            yield Static(self.exception_message)
-            yield Button("OK", variant="primary", id="ok")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.dismiss()
 
 class CheckInScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
@@ -403,7 +395,7 @@ class CheckInItemsTab(Container):
         with Horizontal():
             yield ModelDataTable(
                 model_class=CachedStockItemCheckInRow,
-                sort_column_key="part_name",
+                sort_column_key="timestamp",
                 id="checkin_items_table",
                 zebra_stripes=True,
             )
@@ -464,6 +456,8 @@ class InventreeApp(App):
                 yield TransferItemsTab()
             with TabPane("Check-In Items", id="checkin-items-tab"):
                 yield CheckInItemsTab()
+            with TabPane("Part Search", id="part-search-tab"):
+                yield PartSearchTab()
         #yield Footer()
 
     async def on_ignorable_error_event(self, event: IgnorableErrorEvent):

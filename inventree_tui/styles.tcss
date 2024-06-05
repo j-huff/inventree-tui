@@ -145,3 +145,7 @@ CheckInScreen {
   border-bottom: solid #888888;
   width: auto;
 }
+
+PartSearchTree {
+  height: 1fr;
+}
