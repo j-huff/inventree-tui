@@ -448,6 +448,7 @@ class CheckInItemsTab(Container):
 
 class InventreeApp(App):
     CSS_PATH = "styles.tcss"
+    TITLE = "InvenTree TUI"
 
     def compose(self) -> ComposeResult:
         yield Header()
