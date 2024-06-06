@@ -76,8 +76,9 @@ class PartSearchTab(Container):
 
         status_text.update(f"Search found {len(parts)} parts")
         tree.set_root_label(f"Results: Found {len(parts)} parts")
-        for part in parts:
-            tree.add_part(part, expand=True)
+        max_expanded = 5
+        for i, part in enumerate(parts):
+            tree.add_part(part, expand = i < max_expanded)
 
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
