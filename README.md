@@ -1,11 +1,11 @@
 
-# Inventree TUI
+# InvenTree TUI
 
-Terminal User Interface for Inventree, built with [Textual](https://github.com/Textualize/textual). Project maintained on [GitHub](https://github.com/j-huff/inventree-tui).
+Terminal User Interface for InvenTree, built with [Textual](https://github.com/Textualize/textual). Project maintained on [GitHub](https://github.com/j-huff/inventree-tui).
 
 ## Installation
 
-Inventree TUI can be install via PyPi using the command `pip install inventree-tui`.
+InvenTree TUI can be install via PyPi using the command `pip install inventree-tui`.
 
 Once installed, launch the TUI using the command `python -m inventree-tui`. You will have to configure the required environment variables first (see below).
 
