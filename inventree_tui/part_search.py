@@ -3,7 +3,7 @@ from textual.app import ComposeResult
 from textual.widgets import Footer, Input, Button, Static, TabPane, Tab, TabbedContent, Label, DataTable, Tree
 from textual.containers import Container, Horizontal
 from textual.widget import Widget
-from api import part_search, CachedPart, CachedStockItem
+from .api import part_search, CachedPart, CachedStockItem
 from pydantic import BaseModel
 
 from .error_screen import IgnorableErrorEvent, ErrorDialogScreen

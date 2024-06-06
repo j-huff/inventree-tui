@@ -6,7 +6,7 @@ setup(
     name="inventree-tui",
     version="0.1.1",
     packages=find_packages(),
-    install_requires=["textual"],
+    install_requires=["textual","inventree","pydantic", "python-dotenv"],
     entry_points={
         "console_scripts": [
             "inventree-tui = inventree_tui.app:InventreeApp.run",
