@@ -1,5 +1,6 @@
 from inventree.stock import StockItem, StockLocation
 from inventree.part import Part
+from .base import api
 
 class CachedStockItem():
 
