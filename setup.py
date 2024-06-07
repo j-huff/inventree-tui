@@ -14,5 +14,8 @@ setup(
     },
     description='Terminal UI for InvenTree',
     long_description=long_description,
-    long_description_content_type="text/markdown"
+    long_description_content_type="text/markdown",
+    package_data={
+        "inventree_tui": ["*.tcss"],
+    },
 )
