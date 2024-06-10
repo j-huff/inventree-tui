@@ -7,12 +7,10 @@ from typing import List
 from inventree.stock import StockItem, StockLocation
 from pydantic import BaseModel, PrivateAttr
 from pydantic.fields import Field, FieldInfo
-from requests.exceptions import RequestException
 
 from .base import api
 from .stock_item import CachedStockItem
 from .part_search import CachedPart
-
 
 class ApiException(Exception):
     pass
@@ -85,45 +83,6 @@ def transfer_items(items: List[CachedStockItem], location: StockLocation):
             raise NotImplementedError("Quantity other that 'ALL' not implemented (yet)")
 
     StockItem.adjustStockItems(api, method='transfer', items=_items, location=location.pk)
-
-def item_in_whitelist(item, whitelist):
-    if whitelist is None:
-        return True
-    for s in whitelist:
-        if s in item:
-            return True
-    return False
-
-
-def scanToObject(item):
-    if "stocklocation" in item:
-        return StockLocation(api, item["stocklocation"]["pk"])
-    elif "stockitem" in item:
-        return CachedStockItem(StockItem(api, item["stockitem"]["pk"]))
-
-def scanBarcode(text, whitelist=None):
-    try:
-        item = api.scanBarcode(text)
-        if item_in_whitelist(item, whitelist):
-            return scanToObject(item)
-        else:
-            raise ApiException(f"Item found but not in whitelist: {item}")
-
-    except RequestException as e:
-        if e.response is not None:
-            raise ApiException(f"{e.response.status_code}")
-        else:
-            status = json.loads(e.args[0]['status_code'])
-            if status != 200:
-                raise ApiException(f"Status Code {status}")
-            try:
-                body = json.loads(e.args[0]['body'])
-            except json.JSONDecodeError:
-                raise ApiException(f"failed to decode body")
-
-            raise ApiException(f"{body['error']}")
-    return item
-
 
 class CachedStockItemRow(CachedStockItemRowModel):
     _cached_stock_item: CachedStockItem = PrivateAttr(default=None)

@@ -28,13 +28,17 @@ from inventree_tui.api import (
     ApiException,
     CachedStockItemCheckInRow,
     CachedStockItemRow,
+    CachedStockItem,
     RowBaseModel,
-    scanBarcode,
     transfer_items,
 )
 
+from inventree_tui.api.scanner import scan_barcode
+
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
+
+from inventree.stock import StockItem, StockLocation
 
 logging.basicConfig(
     level="NOTSET",
@@ -303,7 +307,6 @@ class RowEditScreen(Screen):
         await self.table.update()
         self.dismiss(None)
 
-
 class TransferItemsTab(Container):
     destination = reactive(None)
 
@@ -342,7 +345,7 @@ class TransferItemsTab(Container):
 
     async def handle_item_input(self, value: str):
         try:
-            item = scanBarcode(value, ["stockitem"])
+            item = CachedStockItem(scan_barcode(value, [StockItem]))
             table = self.query_one("#transfer-items-table")
 
             await table.add_item(CachedStockItemRow(item))
@@ -354,7 +357,7 @@ class TransferItemsTab(Container):
         if message.input.id == "transfer_destination_input":
             message.input.add_class("readonly")
             try:
-                item = scanBarcode(message.input.value, ["stocklocation"])
+                item = scan_barcode(message.input.value, [StockLocation])
                 self.destination = item
                 self.query_one("#transfer_item_input").focus()
             except ApiException as e:
@@ -430,7 +433,7 @@ class CheckInItemsTab(Container):
     async def handle_item_input(self, value: str):
         status_text = self.query_one("#checkin_status_text")
         try:
-            item = scanBarcode(value, ["stockitem"])
+            item = CachedStockItem(scan_barcode(value, [StockItem]))
             #table = self.query_one("#checkin_items_table")
             if item.default_location is None:
                 errmsg = f"Cannot check-in Stock #{item._stock_item.pk}: No default location"

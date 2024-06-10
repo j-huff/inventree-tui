@@ -9,7 +9,7 @@ setup(
     description="Terminal UI for InvenTree",
     url='https://github.com/j-huff/inventree-tui',
     packages=find_packages(),
-    install_requires=["textual","inventree","pydantic", "python-dotenv"],
+    install_requires=["textual","inventree>=0.14.0","pydantic", "python-dotenv", "textual-autocomplete"],
     entry_points={
         "console_scripts": [
             "inventree-tui = inventree_tui.entrypoint:main",
