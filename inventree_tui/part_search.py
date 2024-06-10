@@ -34,7 +34,8 @@ class PartSearchTree(Widget):
             node.expand()
 
     def add_stock_item(self, node, stock_item: CachedStockItem):
-        node.add(f"Stock #{stock_item.item.pk}, location: {stock_item.location.name}, Q: {stock_item.item.quantity}",
+        location = stock_item.location.name if stock_item.location else ''
+        node.add(f"Stock #{stock_item.item.pk}, location: {location}, Q: {stock_item.item.quantity}",
                 data=stock_item, allow_expand=False, expand=False)
 
     def add_stock_items(self, node):
