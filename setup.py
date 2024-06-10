@@ -15,7 +15,6 @@ setup(
             "inventree-tui = inventree_tui.entrypoint:main",
         ],
     },
-    description="Terminal UI for InvenTree",
     long_description=long_description,
     long_description_content_type="text/markdown",
     package_data={
