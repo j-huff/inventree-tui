@@ -11,6 +11,7 @@ from requests.exceptions import RequestException
 
 from .base import api
 from .stock_item import CachedStockItem
+from .part_search import CachedPart
 
 
 class ApiException(Exception):
