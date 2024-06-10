@@ -9,7 +9,7 @@ setup(
     install_requires=["textual","inventree","pydantic", "python-dotenv"],
     entry_points={
         "console_scripts": [
-            "inventree-tui = inventree_tui.app:InventreeApp.run",
+            "inventree-tui = inventree_tui.entrypoint:main",
         ],
     },
     description='Terminal UI for InvenTree',
