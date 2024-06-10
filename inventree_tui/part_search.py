@@ -9,7 +9,8 @@ from textual.widgets import (
     Tree,
 )
 
-from .api import CachedPart, CachedStockItem, part_search
+from .api import CachedStockItem
+from .api.part_search import part_search, CachedPart
 from .error_screen import IgnorableErrorEvent
 
 
