@@ -50,7 +50,7 @@ class CachedStockItem():
     # Alias for stock_location
     @property
     def location(self) -> StockLocation:
-        return self.stock_location()
+        return self.stock_location
 
     @property
     def stock_location_name(self) -> str:
