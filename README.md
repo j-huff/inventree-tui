@@ -5,7 +5,7 @@ Terminal User Interface for InvenTree, built with [Textual](https://github.com/T
 
 ## Installation
 
-InvenTree TUI can be install via PyPi using the command `pip install inventree-tui`.
+InvenTree TUI can be install via PyPi using the command `pipx install inventree-tui`. Using `pipx` rather than `pip` installs the application in its own virtual environment, ensuring that the dependencies of different applications do not conflict with it.
 
 Once installed, launch the TUI using the command `inventree-tui` or by running the library module as a script (`python -m inventree-tui`). You will have to configure the required environment variables first (see below).
 
