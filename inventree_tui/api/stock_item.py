@@ -47,11 +47,16 @@ class CachedStockItem():
             self._stock_location = self._stock_item.getLocation()
         return self._stock_location
 
+    # Alias for stock_location
     @property
     def location(self) -> StockLocation:
-        if self._stock_location is None:
-            self._stock_location = self._stock_item.getLocation()
-        return self._stock_location
+        return self.stock_location()
+
+    @property
+    def stock_location_name(self) -> str:
+        if self.stock_location is None:
+            return "None"
+        return self.stock_location.name
 
     @property
     def quantity(self):

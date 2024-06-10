@@ -194,7 +194,7 @@ class CheckInScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Container(id="checkin-dialog") as container:
             container.border_title = self.dialog_title
-            yield Static(f"Current Location: {self.item.stock_location.name}")
+            yield Static(f"Current Location: {self.item.stock_location_name}")
             yield Static(f"Default Location: {self.item.default_location.name}")
             yield Static(f"Confirm Check-In?", classes="dialog-question")
             static = Static(self.error_message, id="check-errormsg", classes="error-msg")
@@ -496,7 +496,7 @@ class InventreeApp(App):
             (item, destination) = args
 
             try:
-                if item.stock_location.pk == destination.pk:
+                if item.stock_location is not None and item.stock_location.pk == destination.pk:
                     status_text = self.query_one("#checkin_status_text")
                     status_text.update(f"Stock #{item._stock_item.pk} was already at {destination.name}")
                 else:

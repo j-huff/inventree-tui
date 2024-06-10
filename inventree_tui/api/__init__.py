@@ -137,7 +137,7 @@ class CachedStockItemRow(CachedStockItemRowModel):
                 stock_number=cached_stock_item._stock_item.pk,
                 part_name=cached_stock_item.part.name,
                 quantity=cached_stock_item.quantity,
-                current_location=cached_stock_item.stock_location.name
+                current_location=cached_stock_item.stock_location_name
             )
             self._cached_stock_item=cached_stock_item
         else:
@@ -195,7 +195,7 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
                 stock_number=cached_stock_item._stock_item.pk,
                 part_name=cached_stock_item.part.name,
                 quantity=cached_stock_item.quantity,
-                previous_location=cached_stock_item.stock_location.name,
+                previous_location=cached_stock_item.stock_location_name,
                 new_location=cached_stock_item.default_location.name,
                 timestamp=datetime.now(),
             )
