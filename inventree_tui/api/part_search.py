@@ -1,8 +1,11 @@
-from .base import api
+from typing import List
+
 from inventree.part import Part
 from inventree.stock import StockItem
-from typing import List
+
+from .base import api
 from .stock_item import CachedStockItem
+
 
 class CachedPart():
 

@@ -1,24 +1,40 @@
 import logging
-from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Input, Button, Static, TabPane, Tab, TabbedContent, Label, DataTable
-from textual.widgets.data_table import RowKey
-from textual.widget import Widget
-from textual.containers import Container, Grid, Horizontal
-from textual.reactive import reactive
-from inventree_tui.api import ApiException, scanBarcode, CachedStockItemRow, RowBaseModel, transfer_items, CachedStockItemCheckInRow
-from textual.screen import Screen, ModalScreen
-import asyncio
+from typing import Any, List, Set, Type
 
+from pydantic import ValidationError
+from textual.app import App, ComposeResult
+from textual.containers import Container, Horizontal
 from textual.events import Event, Key
 from textual.logging import TextualHandler
-
 from textual.message import Message
-from typing import List, Type, Any, Set
-from pydantic import ValidationError
+from textual.reactive import reactive
+from textual.screen import ModalScreen, Screen
+from textual.widget import Widget
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    Static,
+    Tab,
+    TabbedContent,
+    TabPane,
+)
+from textual.widgets.data_table import RowKey
 
+from inventree_tui.api import (
+    ApiException,
+    CachedStockItemCheckInRow,
+    CachedStockItemRow,
+    RowBaseModel,
+    scanBarcode,
+    transfer_items,
+)
+
+from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
-from .error_screen import IgnorableErrorEvent, ErrorDialogScreen
-
 
 logging.basicConfig(
     level="NOTSET",
@@ -342,7 +358,6 @@ class TransferItemsTab(Container):
                 self.destination = item
                 self.query_one("#transfer_item_input").focus()
             except ApiException as e:
-                #message.input.value = str(e)
                 event = IgnorableErrorEvent(self, "Scan Error", str(e))
                 self.post_message(event)
             message.input.remove_class("readonly")
@@ -504,8 +519,3 @@ class InventreeApp(App):
  #       async def handle_button_pressed(self, message: Button.Pressed) -> None:
 #            if message.button.id == "exception_ok":
 #                await self.pop_screen()
-
-#app = InventreeApp()
-#if __name__ == "__main__":
-#    app = InventreeApp()
-#    app.run()
