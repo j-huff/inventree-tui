@@ -1,17 +1,17 @@
 
-import logging
-from inventree.stock import StockItem, StockLocation
-from requests.exceptions import RequestException
-from inventree.part import Part
 import json
-
-from pydantic import BaseModel, PrivateAttr, ValidationError
-from pydantic.fields import Field, FieldInfo
-from typing import List, Type, Any
+import logging
 from datetime import datetime
+from typing import List
+
+from inventree.stock import StockItem, StockLocation
+from pydantic import BaseModel, PrivateAttr
+from pydantic.fields import Field, FieldInfo
+from requests.exceptions import RequestException
+
 from .base import api
-from .part_search import part_search, CachedPart
 from .stock_item import CachedStockItem
+
 
 class ApiException(Exception):
     pass

@@ -1,9 +1,10 @@
-from textual.screen import Screen
-from textual.reactive import reactive
 from textual.app import ComposeResult
-from textual.widgets import Button, Static
 from textual.containers import Container
 from textual.events import Event
+from textual.reactive import reactive
+from textual.screen import Screen
+from textual.widgets import Button, Static
+
 
 class ErrorDialogScreen(Screen):
     title = reactive("")

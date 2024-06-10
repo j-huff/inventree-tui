@@ -1,24 +1,40 @@
 import logging
-from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Input, Button, Static, TabPane, Tab, TabbedContent, Label, DataTable
-from textual.widgets.data_table import RowKey
-from textual.widget import Widget
-from textual.containers import Container, Grid, Horizontal
-from textual.reactive import reactive
-from inventree_tui.api import ApiException, scanBarcode, CachedStockItemRow, RowBaseModel, transfer_items, CachedStockItemCheckInRow
-from textual.screen import Screen, ModalScreen
-import asyncio
+from typing import Any, List, Set, Type
 
+from pydantic import ValidationError
+from textual.app import App, ComposeResult
+from textual.containers import Container, Horizontal
 from textual.events import Event, Key
 from textual.logging import TextualHandler
-
 from textual.message import Message
-from typing import List, Type, Any, Set
-from pydantic import ValidationError
+from textual.reactive import reactive
+from textual.screen import ModalScreen, Screen
+from textual.widget import Widget
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    Static,
+    Tab,
+    TabbedContent,
+    TabPane,
+)
+from textual.widgets.data_table import RowKey
 
+from inventree_tui.api import (
+    ApiException,
+    CachedStockItemCheckInRow,
+    CachedStockItemRow,
+    RowBaseModel,
+    scanBarcode,
+    transfer_items,
+)
+
+from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
-from .error_screen import IgnorableErrorEvent, ErrorDialogScreen
-
 
 logging.basicConfig(
     level="NOTSET",
