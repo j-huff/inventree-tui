@@ -15,9 +15,6 @@ class PartSearchTree(Widget):
 
     def compose(self) -> ComposeResult:
         self.part_tree.root.expand()
-        #characters.add_leaf("Paul")
-        #characters.add_leaf("Jessica")
-        #characters.add_leaf("Chani")
         yield self.part_tree
 
     def clear(self):

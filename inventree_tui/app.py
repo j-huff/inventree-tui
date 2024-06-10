@@ -342,7 +342,6 @@ class TransferItemsTab(Container):
                 self.destination = item
                 self.query_one("#transfer_item_input").focus()
             except ApiException as e:
-                #message.input.value = str(e)
                 event = IgnorableErrorEvent(self, "Scan Error", str(e))
                 self.post_message(event)
             message.input.remove_class("readonly")
@@ -504,8 +503,3 @@ class InventreeApp(App):
  #       async def handle_button_pressed(self, message: Button.Pressed) -> None:
 #            if message.button.id == "exception_ok":
 #                await self.pop_screen()
-
-#app = InventreeApp()
-#if __name__ == "__main__":
-#    app = InventreeApp()
-#    app.run()
