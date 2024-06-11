@@ -31,7 +31,8 @@ from inventree_tui.api import (
     CachedStockItem,
     RowBaseModel,
     transfer_items,
-    InventreeScanner
+    InventreeScanner,
+    WhitelistException
 )
 
 from textual_autocomplete import (
@@ -359,8 +360,9 @@ class TransferItemsTab(Container):
 
             await table.add_item(CachedStockItemRow(item))
         except ApiException as e:
-            event = IgnorableErrorEvent(self, "Scan Error", str(e))
-            self.post_message(event)
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
+        except WhitelistException as e:
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
 
     async def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
         location = message.obj
@@ -449,8 +451,9 @@ class CheckInItemsTab(Container):
             self.post_message(event)
             #await table.add_item(CachedStockItemRow(item))
         except ApiException as e:
-            event = IgnorableErrorEvent(self, "Scan Error", str(e))
-            self.post_message(event)
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
+        except WhitelistException as e:
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         if message.input.id == "checkin_item_input":

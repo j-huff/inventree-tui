@@ -11,7 +11,7 @@ from pydantic.fields import Field, FieldInfo
 from .base import api, ApiException
 from .stock_item import CachedStockItem
 from .part_search import CachedPart
-from .scanner import InventreeScanner
+from .scanner import InventreeScanner, WhitelistException
 
 
 class RowBaseModel(BaseModel):
