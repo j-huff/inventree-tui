@@ -535,11 +535,11 @@ class InventreeApp(App):
 
             # Compare the versions
             if latest_version > current_version:
-                s = """\
-A new version of your_package_name is available: {latest_version}\n\
-You can update it by running: pip install --upgrade your_package_name"""
+                s = f"""\
+A new version of {package_name} is available: {latest_version}\n\
+You can upgrade to it by running: `pip install --upgrade {package_name}`"""
                 self.post_message(IgnorableErrorEvent(self, "New Version Available", s))
-                self.post_message(StatusChanged(self,f"New Version Available ({latest_version})"))
+                self.post_message(StatusChanged(self,f"New Version Available ({latest_version}). Please Upgrade."))
             else:
                 self.post_message(StatusChanged(self,f"InvenTree TUI up to date ({current_version})"))
         else:
