@@ -11,6 +11,7 @@ import json
 from fuzzywuzzy import fuzz
 from textual.events import Event
 from inventree_tui.error_screen import IgnorableErrorEvent
+from textual import work
 
 from textual.widgets import (
     Input,
@@ -84,8 +85,8 @@ class InventreeDropdownItem(DropdownItem):
     def create(cls, inventree_object: InventreeObject) -> "InventreeDropdownItem":
         return cls(inventree_object=inventree_object, main=inventree_object.name)
 
-def search_similarity(search_term, string):
-    similarity_ratio = fuzz.ratio(search_term, string) / 100
+def search_similarity(search_term: str, string: str):
+    similarity_ratio = fuzz.ratio(search_term.lower(), string.lower()) / 100
     return similarity_ratio
 
 class InventreeScanner(Vertical):
@@ -112,19 +113,20 @@ class InventreeScanner(Vertical):
 
         super().__init__(id=id);
 
-    async def search(self, search_term: str) -> None:
+    @work(exclusive=False, thread=True)
+    def search(self, search_term: str) -> None:
         for cls in self.whitelist:
             cls_items = cls.list(api, search=search_term, limit=self.search_limit)
             self.search_cache.setdefault(cls, {})[search_term] = cls_items
 
         self.dropdown.sync_state(self.dropdown.input_widget.value, self.dropdown.input_widget.cursor_position)
 
-    async def on_input_changed(self, message: Input.Changed) -> None:
+    def on_input_changed(self, message: Input.Changed) -> None:
         text = message.value.strip()
         # Kind of a hack: If the input starts with {, don't search
         if text.startswith("{") or len(text) <= 2:
             return
-        self.run_worker(self.search(text), exclusive=True)
+        self.search(text)
 
     def get_dropdown_items(self, input_state: InputState) -> list[InventreeDropdownItem]:
         text = input_state.value
@@ -150,7 +152,8 @@ class InventreeScanner(Vertical):
             self.dropdown
         )
 
-    async def scan_barcode(self, text: str) -> None:
+    @work(exclusive=False, thread=True)
+    def scan_barcode(self, text: str) -> None:
         try:
             obj = scan_barcode(text, self.whitelist)
         except ApiException as e:
@@ -162,6 +165,7 @@ class InventreeScanner(Vertical):
             return
         self.post_message(self.ItemScanned(self, obj))
 
+    @work(exclusive=False, thread=True)
     async def search_single_item(self, text: str) -> None:
         # Return the first item that matches in the search.
         # Could maybe use the search cache instead of doing a new search,
@@ -179,11 +183,11 @@ class InventreeScanner(Vertical):
         event = IgnorableErrorEvent(self, "No Results", f"The search term '{text}' yielded no results")
         self.post_message(event)
 
-    async def on_input_submitted(self, message: Input.Submitted) -> None:
+    def on_input_submitted(self, message: Input.Submitted) -> None:
         text = message.value.strip()
         if text.startswith("{"):
-            self.run_worker(self.scan_barcode(text), exclusive=True)
-        else:
-            self.run_worker(self.search_single_item(text), exclusive=True)
+            self.scan_barcode(text)
+        elif len(text) > 0:
+            self.search_single_item(text)
 
         message.input.clear()

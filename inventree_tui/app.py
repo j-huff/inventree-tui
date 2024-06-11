@@ -1,7 +1,9 @@
+import httpx
 import logging
 from typing import Any, List, Set, Type
 import requests
 import importlib
+from textual import work
 
 from pydantic import ValidationError
 from textual.app import App, ComposeResult
@@ -514,14 +516,17 @@ class InventreeApp(App):
 
         await self.push_screen(dialog, checkin_dialog_callback)
 
-    def check_for_updates(self):
+
+    @work(exclusive=True)
+    async def check_for_updates(self):
         # Get the currently installed version of your package
         package_name = __package__ or "inventree_tui"
         current_version = importlib.metadata.version(package_name)
 
         # Make a request to the PyPI API to get the latest version information
         package_url = f"https://pypi.org/pypi/{package_name}/json"
-        response = requests.get(package_url)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(package_url)
 
         if response.status_code == 200:
             # Parse the JSON response
@@ -548,7 +553,7 @@ You can update it by running: pip install --upgrade your_package_name"""
         if self.app_status_text is not None:
             self.app_status_text.update(status_message)
 
-    async def initialization(self):
+    def initialization(self):
         self.check_for_updates()
 
     def on_mount(self):
