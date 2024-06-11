@@ -8,13 +8,11 @@ from inventree.stock import StockItem, StockLocation
 from pydantic import BaseModel, PrivateAttr
 from pydantic.fields import Field, FieldInfo
 
-from .base import api
+from .base import api, ApiException
 from .stock_item import CachedStockItem
 from .part_search import CachedPart
 from .scanner import InventreeScanner
 
-class ApiException(Exception):
-    pass
 
 class RowBaseModel(BaseModel):
     @classmethod

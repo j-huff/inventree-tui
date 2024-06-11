@@ -320,7 +320,7 @@ class TransferItemsTab(Container):
 
     def compose(self) -> ComposeResult:
         #yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
-        yield InventreeScanner(whitelist=[StockLocation], placeholder="Scan Location Barcode", input_id="transfer_destination_input")
+        yield InventreeScanner(id="transfer_destination_scanner", whitelist=[StockLocation], placeholder="Scan Location Barcode", input_id="transfer_destination_input")
         yield LabeledText("Destination", "None", id="destination")
         yield Input(placeholder="Scan Items", id="transfer_item_input")
         with Horizontal():
@@ -362,18 +362,11 @@ class TransferItemsTab(Container):
             event = IgnorableErrorEvent(self, "Scan Error", str(e))
             self.post_message(event)
 
+    async def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
+        location = message.obj
+        self.destination = location
+
     async def on_input_submitted(self, message: Input.Submitted) -> None:
-        if message.input.id == "transfer_destination_input":
-            message.input.add_class("readonly")
-            try:
-                item = scan_barcode(message.input.value, [StockLocation])
-                self.destination = item
-                self.query_one("#transfer_item_input").focus()
-            except ApiException as e:
-                event = IgnorableErrorEvent(self, "Scan Error", str(e))
-                self.post_message(event)
-            message.input.remove_class("readonly")
-            message.input.clear()
 
         if message.input.id == "transfer_item_input":
             message.input.add_class("readonly")
