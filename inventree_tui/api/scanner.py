@@ -1,16 +1,26 @@
 import logging
+from typing import cast
 from textual.app import ComposeResult
 from textual.widget import Widget
 from typing import List, Type
 from inventree.base import InventreeObject
 from .base import api
 from requests.exceptions import RequestException
+from dataclasses import dataclass
+import json
+
+from textual.widgets import (
+    Input,
+)
 
 from textual_autocomplete import (
     AutoComplete,
     Dropdown,
     DropdownItem,
+    InputState
 )
+
+from textual.containers import Vertical
 
 def item_in_whitelist(item, whitelist: List[Type[InventreeObject]]):
     for cls in whitelist:
@@ -53,10 +63,45 @@ def scan_barcode(text, whitelist: List[Type[InventreeObject]]) -> Type[Inventree
 
             raise ApiException(f"{body['error']}")
 
-def Scanner(Widget):
-    def __init__(self, input_id: str | None = None):
-        pass
+@dataclass
+class InventreeDropdownItem(DropdownItem):
+    inventree_object: InventreeObject | None = None
+
+    @classmethod
+    def create(cls, inventree_object: InventreeObject) -> "InventreeDropdownItem":
+        return cls(inventree_object=inventree_object, main=inventree_object.name)
+
+#def get_items(input_state: InputState) -> list[DropdownItem]:
+    #    logging.info("RETURNING []")
+#    return list([DropdownItem("test") for i in range(3)])
+
+class InventreeScanner(Vertical):
+    classes = "autocomplete_container"
+
+    def __init__(self,
+        whitelist: List[Type[InventreeObject]] = [],
+        placeholder: str | None = None,
+        input_id: str | None = None,
+    ) -> None:
+        self.input_id = input_id
+        self.whitelist = whitelist
+        self.placeholder = placeholder
+        super().__init__();
+
+    def get_dropdown_items(self, input_state: InputState) -> list[DropdownItem]:
+        text = input_state.value
+        text = text.strip()
+        items = []
+        if len(text) > 2:
+            for cls in self.whitelist:
+                cls_items = cls.list(api, search=text)
+                items = items + cls_items
+
+        #return [DropdownItem("TEST") for i in items]
+        return [cast(DropdownItem,InventreeDropdownItem.create(i)) for i in items]
 
     def compose(self) -> ComposeResult:
-        pass
-        #yield AutoComplete(tooltip
+        yield AutoComplete(
+            Input(id=self.input_id, placeholder=self.placeholder),
+            Dropdown(items=self.get_dropdown_items),
+        )

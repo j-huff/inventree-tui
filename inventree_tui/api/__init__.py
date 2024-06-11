@@ -11,6 +11,7 @@ from pydantic.fields import Field, FieldInfo
 from .base import api
 from .stock_item import CachedStockItem
 from .part_search import CachedPart
+from .scanner import InventreeScanner
 
 class ApiException(Exception):
     pass

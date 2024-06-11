@@ -3,7 +3,7 @@ from typing import Any, List, Set, Type
 
 from pydantic import ValidationError
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, Vertical
 from textual.events import Event, Key
 from textual.logging import TextualHandler
 from textual.message import Message
@@ -31,6 +31,14 @@ from inventree_tui.api import (
     CachedStockItem,
     RowBaseModel,
     transfer_items,
+    InventreeScanner
+)
+
+from textual_autocomplete import (
+    AutoComplete,
+    Dropdown,
+    DropdownItem,
+    InputState
 )
 
 from inventree_tui.api.scanner import scan_barcode
@@ -311,7 +319,8 @@ class TransferItemsTab(Container):
     destination = reactive(None)
 
     def compose(self) -> ComposeResult:
-        yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
+        #yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
+        yield InventreeScanner(whitelist=[StockLocation], placeholder="Scan Location Barcode", input_id="transfer_destination_input")
         yield LabeledText("Destination", "None", id="destination")
         yield Input(placeholder="Scan Items", id="transfer_item_input")
         with Horizontal():
@@ -516,7 +525,8 @@ class InventreeApp(App):
         await self.push_screen(dialog, checkin_dialog_callback)
 
     def on_mount(self):
-        self.query_one("#transfer_destination_input").focus()
+        pass
+        #self.query_one("#transfer_destination_input").focus()
         #self.query_one("#checkin_item_input").focus()
 
  #       async def handle_button_pressed(self, message: Button.Pressed) -> None:
