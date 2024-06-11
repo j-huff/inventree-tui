@@ -1,5 +1,7 @@
 import logging
 from typing import Any, List, Set, Type
+import requests
+import importlib
 
 from pydantic import ValidationError
 from textual.app import App, ComposeResult
@@ -13,7 +15,6 @@ from textual.widget import Widget
 from textual.widgets import (
     Button,
     DataTable,
-    Footer,
     Header,
     Input,
     Label,
@@ -46,6 +47,7 @@ from inventree_tui.api.scanner import scan_barcode
 
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
+from .status import StatusChanged
 
 from inventree.stock import StockItem, StockLocation
 
@@ -82,17 +84,9 @@ class ModelDataTable(DataTable):
             dn = self.model_class.field_display_name(col)
             self.add_column(dn, key=col)
 
-        #self.add_column("Del", key="delete_button")
         self.cursor_type = "row"
         self.zerbra_stipes = True
         await self.reload()
-
-#    async def watch_props_and_update(self, props: List[Any]) -> None:
-        #        await self.update(self.model_class.parse_obj(props))
-
-#    async def on_message(self, message: Message) -> None:
-#        if isinstance(message, UpdateTableMessage):
-#            await self.watch_props_and_update(message.data)
 
     async def reload(self) -> None:
         await self.update()
@@ -198,7 +192,7 @@ class LabeledText(Widget):
 
 class CheckInScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
-    error_message = reactive("")
+    error_message = reactive("", repaint=True)
     def __init__(self, item):
         super().__init__()
         self.item = item
@@ -335,7 +329,6 @@ class TransferItemsTab(Container):
             yield Button("Done", id="transfer_done_button", variant="primary")
             yield Static(" ")
             yield Button("Cancel", id="cancel_button", variant="default")
-        yield Static("Status Ok",id="transfer_status_text", classes="status_text")
 
     async def on_mount(self):
 
@@ -377,7 +370,6 @@ class TransferItemsTab(Container):
             message.input.clear()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        status_text = self.query_one("#transfer_status_text")
         if event.button.id == "transfer_done_button":
             # Logic to transfer items to the location
             errors = []
@@ -391,15 +383,14 @@ class TransferItemsTab(Container):
             if len(errors) > 0:
                 event = IgnorableErrorEvent(self, "Submission Error", "\n".join(errors))
                 self.post_message(event)
-                status_text.update(f"Error: {' '.join(errors)}")
+                self.post_message(StatusChanged(self, f"Error: {' '.join(errors)}"))
                 return
 
             items = [row.item for row in table.data]
             transfer_items(items, self.destination)
 
-            status_text = self.query_one("#transfer_status_text")
             s = "s" if len(items) > 1 else ""
-            status_text.update(f"Transferred {len(items)} stock item{s} to {self.destination.name}")
+            self.post_message(StatusChanged(self, f"Transferred {len(items)} stock item{s} to {self.destination.name}"))
             await table.clear_data()
 
         elif event.button.id == "cancel_button":
@@ -423,7 +414,6 @@ class CheckInItemsTab(Container):
             )
         with Horizontal (classes="button-bar"):
             yield Button("Clear History", id="checkin_clear_button", variant="primary")
-        yield Static("Status Ok",id="checkin_status_text", classes="status_text")
 
     async def on_mount(self):
 
@@ -435,13 +425,12 @@ class CheckInItemsTab(Container):
         #await self.handle_item_input('{"stockitem":9}')
 
     async def handle_item_input(self, value: str):
-        status_text = self.query_one("#checkin_status_text")
         try:
             item = CachedStockItem(scan_barcode(value, [StockItem]))
             #table = self.query_one("#checkin_items_table")
             if item.default_location is None:
                 errmsg = f"Cannot check-in Stock #{item._stock_item.pk}: No default location"
-                status_text.update(errmsg)
+                self.post_message(StatusChanged(self, errmsg))
                 event = IgnorableErrorEvent(self, "Check-In Error", errmsg)
                 self.post_message(event)
                 return
@@ -463,15 +452,20 @@ class CheckInItemsTab(Container):
             message.input.clear()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
-        status_text = self.query_one("#checkin_status_text")
         table = self.query_one("#checkin_items_table")
         if event.button.id == "checkin_clear_button":
-            status_text.update("Cleared history")
+            self.post_message(StatusChanged(self, "Cleared History"))
             await table.clear_data()
 
 class InventreeApp(App):
     CSS_PATH = "styles.tcss"
     TITLE = "InvenTree TUI"
+
+    status_message = reactive("")
+
+    def __init__(self):
+        self.app_status_text = None
+        super().__init__()
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -482,7 +476,9 @@ class InventreeApp(App):
                 yield CheckInItemsTab()
             with TabPane("Part Search", id="part-search-tab"):
                 yield PartSearchTab()
-        #yield Footer()
+        with Vertical(id="footer"):
+            self.app_status_text = Label(self.status_message,id="app_status_text")
+            yield self.app_status_text
 
     async def on_ignorable_error_event(self, event: IgnorableErrorEvent):
         dialog = ErrorDialogScreen()
@@ -505,8 +501,7 @@ class InventreeApp(App):
 
             try:
                 if item.stock_location is not None and item.stock_location.pk == destination.pk:
-                    status_text = self.query_one("#checkin_status_text")
-                    status_text.update(f"Stock #{item._stock_item.pk} was already at {destination.name}")
+                    self.post_message(StatusChanged(self, "Stock #{item._stock_item.pk} was already at {destination.name}"))
                 else:
                     transfer_items([item], destination)
             except Exception as e:
@@ -517,14 +512,45 @@ class InventreeApp(App):
             table = self.query_one("#checkin_items_table")
             await table.add_item(CachedStockItemCheckInRow(item))
 
-
         await self.push_screen(dialog, checkin_dialog_callback)
 
-    def on_mount(self):
-        pass
-        #self.query_one("#transfer_destination_input").focus()
-        #self.query_one("#checkin_item_input").focus()
+    def check_for_updates(self):
+        # Get the currently installed version of your package
+        package_name = __package__ or "inventree_tui"
+        current_version = importlib.metadata.version(package_name)
 
- #       async def handle_button_pressed(self, message: Button.Pressed) -> None:
-#            if message.button.id == "exception_ok":
-#                await self.pop_screen()
+        # Make a request to the PyPI API to get the latest version information
+        package_url = f"https://pypi.org/pypi/{package_name}/json"
+        response = requests.get(package_url)
+
+        if response.status_code == 200:
+            # Parse the JSON response
+            data = response.json()
+            latest_version = data["info"]["version"]
+
+            # Compare the versions
+            if latest_version > current_version:
+                s = """\
+A new version of your_package_name is available: {latest_version}\n\
+You can update it by running: pip install --upgrade your_package_name"""
+                self.post_message(IgnorableErrorEvent(self, "New Version Available", s))
+                self.post_message(StatusChanged(self,f"New Version Available ({latest_version})"))
+            else:
+                self.post_message(StatusChanged(self,f"InvenTree TUI up to date ({current_version})"))
+        else:
+            self.post_message(StatusChanged(self, "Failed to check for update"))
+
+    def on_status_changed(self, message: StatusChanged):
+        logging.info(f"STATUS CHANGED {message.value}")
+        self.status_message = message.value
+
+    def watch_status_message(self, status_message: str) -> None:
+        if self.app_status_text is not None:
+            self.app_status_text.update(status_message)
+
+    async def initialization(self):
+        self.check_for_updates()
+
+    def on_mount(self):
+        self.query_one("#transfer_destination_input").focus()
+        self.call_after_refresh(self.initialization)

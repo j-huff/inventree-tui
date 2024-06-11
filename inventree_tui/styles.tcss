@@ -13,6 +13,7 @@ ErrorDialogScreen {
 }
 
 TabbedContent {
+  height: 1fr;
   padding-bottom: 0;
   margin-bottom: 0;
 }
@@ -41,10 +42,6 @@ TabPane {
 
 .button-bar {
   height: auto;
-}
-
-.status_text {
-  margin-top: 1;
 }
 
 #error-dialog Button {
@@ -178,5 +175,19 @@ InventreeScanner {
 }
 
 .autocomplete--highlight-match .autocomplete--selection-cursor {
+  background: red;
+}
+
+#footer {
+  padding-left: 1;
+  padding-right: 1;
+  height: 1;
+}
+
+Footer Static {
+  margin: 0;
+  padding: 0;
+  height: 1;
+  width: 10;
   background: red;
 }

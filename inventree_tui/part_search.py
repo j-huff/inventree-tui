@@ -12,7 +12,7 @@ from textual.widgets import (
 from .api import CachedStockItem
 from .api.part_search import part_search, CachedPart
 from .error_screen import IgnorableErrorEvent
-
+from .status import StatusChanged
 
 class PartSearchTree(Widget):
     def __init__(self, *args, **kwargs):
@@ -62,23 +62,21 @@ class PartSearchTab(Container):
         yield Input(placeholder="Search Parts", id="part_search_input")
         yield Static("Results",id="part_search_table_title", classes="table-title")
         yield PartSearchTree()
-        yield Static("Status Ok",id="part_search_status_text", classes="status_text")
 
     async def handle_part_search_input(self, value: str):
-        status_text = self.query_one("#part_search_status_text")
         parts = part_search(value)
 
         if len(parts) == 0:
             msg = "The part search yielded no results."
             event = IgnorableErrorEvent(self, "No Parts Found", msg)
             self.post_message(event)
-            status_text.update(msg)
+            self.post_message(StatusChanged(self, msg))
             return
 
         tree = self.query_one(PartSearchTree)
         tree.clear()
 
-        status_text.update(f"Search found {len(parts)} parts")
+        self.post_message(StatusChanged(self, f"Search found {len(parts)} parts"))
         tree.set_root_label(f"Results: Found {len(parts)} parts")
         max_expanded = 5
         for i, part in enumerate(parts):
