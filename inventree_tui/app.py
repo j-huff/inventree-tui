@@ -3,7 +3,7 @@ from typing import Any, List, Set, Type
 
 from pydantic import ValidationError
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, Vertical
 from textual.events import Event, Key
 from textual.logging import TextualHandler
 from textual.message import Message
@@ -28,13 +28,26 @@ from inventree_tui.api import (
     ApiException,
     CachedStockItemCheckInRow,
     CachedStockItemRow,
+    CachedStockItem,
     RowBaseModel,
-    scanBarcode,
     transfer_items,
+    InventreeScanner,
+    WhitelistException
 )
+
+from textual_autocomplete import (
+    AutoComplete,
+    Dropdown,
+    DropdownItem,
+    InputState
+)
+
+from inventree_tui.api.scanner import scan_barcode
 
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
+
+from inventree.stock import StockItem, StockLocation
 
 logging.basicConfig(
     level="NOTSET",
@@ -303,12 +316,12 @@ class RowEditScreen(Screen):
         await self.table.update()
         self.dismiss(None)
 
-
 class TransferItemsTab(Container):
     destination = reactive(None)
 
     def compose(self) -> ComposeResult:
-        yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
+        #yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
+        yield InventreeScanner(id="transfer_destination_scanner", whitelist=[StockLocation], placeholder="Scan Location Barcode", input_id="transfer_destination_input")
         yield LabeledText("Destination", "None", id="destination")
         yield Input(placeholder="Scan Items", id="transfer_item_input")
         with Horizontal():
@@ -342,26 +355,20 @@ class TransferItemsTab(Container):
 
     async def handle_item_input(self, value: str):
         try:
-            item = scanBarcode(value, ["stockitem"])
+            item = CachedStockItem(scan_barcode(value, [StockItem]))
             table = self.query_one("#transfer-items-table")
 
             await table.add_item(CachedStockItemRow(item))
         except ApiException as e:
-            event = IgnorableErrorEvent(self, "Scan Error", str(e))
-            self.post_message(event)
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
+        except WhitelistException as e:
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
+
+    async def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
+        location = message.obj
+        self.destination = location
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
-        if message.input.id == "transfer_destination_input":
-            message.input.add_class("readonly")
-            try:
-                item = scanBarcode(message.input.value, ["stocklocation"])
-                self.destination = item
-                self.query_one("#transfer_item_input").focus()
-            except ApiException as e:
-                event = IgnorableErrorEvent(self, "Scan Error", str(e))
-                self.post_message(event)
-            message.input.remove_class("readonly")
-            message.input.clear()
 
         if message.input.id == "transfer_item_input":
             message.input.add_class("readonly")
@@ -430,7 +437,7 @@ class CheckInItemsTab(Container):
     async def handle_item_input(self, value: str):
         status_text = self.query_one("#checkin_status_text")
         try:
-            item = scanBarcode(value, ["stockitem"])
+            item = CachedStockItem(scan_barcode(value, [StockItem]))
             #table = self.query_one("#checkin_items_table")
             if item.default_location is None:
                 errmsg = f"Cannot check-in Stock #{item._stock_item.pk}: No default location"
@@ -444,8 +451,9 @@ class CheckInItemsTab(Container):
             self.post_message(event)
             #await table.add_item(CachedStockItemRow(item))
         except ApiException as e:
-            event = IgnorableErrorEvent(self, "Scan Error", str(e))
-            self.post_message(event)
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
+        except WhitelistException as e:
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         if message.input.id == "checkin_item_input":
@@ -513,7 +521,8 @@ class InventreeApp(App):
         await self.push_screen(dialog, checkin_dialog_callback)
 
     def on_mount(self):
-        self.query_one("#transfer_destination_input").focus()
+        pass
+        #self.query_one("#transfer_destination_input").focus()
         #self.query_one("#checkin_item_input").focus()
 
  #       async def handle_button_pressed(self, message: Button.Pressed) -> None:

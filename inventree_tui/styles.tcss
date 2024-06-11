@@ -149,3 +149,34 @@ CheckInScreen {
 PartSearchTree {
   height: 1fr;
 }
+
+AutoComplete {
+  height: auto;
+}
+
+Dropdown {
+  max-width: 10;
+  background: $primary-background;
+}
+
+InventreeScanner {
+  height: 3;
+}
+
+
+.autocomplete--highlight-match {
+  background: $primary-background;
+  color: $text;
+}
+
+.autocomplete {
+  background: $primary-background;
+}
+
+.autocomplete--selection-cursor {
+  background: $accent;
+}
+
+.autocomplete--highlight-match .autocomplete--selection-cursor {
+  background: red;
+}

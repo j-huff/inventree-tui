@@ -1,0 +1,189 @@
+import logging
+from typing import cast
+from textual.app import ComposeResult
+from textual.widget import Widget
+from typing import List, Type, Dict, Tuple, Set
+from inventree.base import InventreeObject
+from .base import api, ApiException
+from requests.exceptions import RequestException
+from dataclasses import dataclass
+import json
+from fuzzywuzzy import fuzz
+from textual.events import Event
+from inventree_tui.error_screen import IgnorableErrorEvent
+
+from textual.widgets import (
+    Input,
+)
+
+from textual_autocomplete import (
+    AutoComplete,
+    Dropdown,
+    DropdownItem,
+    InputState
+)
+
+from textual.containers import Vertical
+
+class WhitelistException(Exception):
+    def __init__(self, item, whitelist):
+        self.message = "Item not in whitelist"
+        self.item = item
+        self.whitelist = whitelist
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f'{self.message}: {self.item} not in {self.whitelist}'
+
+def item_in_whitelist(item, whitelist: List[Type[InventreeObject]]):
+    for cls in whitelist:
+        if cls.MODEL_TYPE in item:
+            return True
+    return False
+
+# Returns the InventreeObject class of the item if it's in the whitelist,
+# otherwise returns None
+def item_class(item, whitelist: List[Type[InventreeObject]]) -> Type[InventreeObject] | None:
+    for cls in whitelist:
+        logging.info(vars(cls))
+        if cls.MODEL_TYPE in item:
+            return cls
+    return None
+
+def scan_to_object(item, cls: Type[InventreeObject]):
+    return cls(api, item[cls.MODEL_TYPE]["pk"])
+
+def scan_barcode(text, whitelist: List[Type[InventreeObject]]) -> Type[InventreeObject]:
+    try:
+        item = api.scanBarcode(text)
+        cls = item_class(item, whitelist)
+        if cls is None:
+            raise WhitelistException(item, whitelist)
+        else:
+            return scan_to_object(item, cls)
+
+    except RequestException as e:
+        if e.response is not None:
+            raise ApiException(f"{e.response.body}", status_code=e.response.status_code)
+        else:
+            status = e.args[0]['status_code']
+            if status != 200:
+                raise ApiException(f"Status Code {status}", status_code=status)
+            try:
+                body = json.loads(e.args[0]['body'])
+            except json.JSONDecodeError:
+                raise ApiException(f"failed to decode body", status_code=status)
+
+            raise ApiException(f"{body['error']}", status_code=status)
+
+@dataclass
+class InventreeDropdownItem(DropdownItem):
+    inventree_object: InventreeObject | None = None
+
+    @classmethod
+    def create(cls, inventree_object: InventreeObject) -> "InventreeDropdownItem":
+        return cls(inventree_object=inventree_object, main=inventree_object.name)
+
+def search_similarity(search_term, string):
+    similarity_ratio = fuzz.ratio(search_term, string) / 100
+    return similarity_ratio
+
+class InventreeScanner(Vertical):
+    classes = "autocomplete_container"
+    search_limit = 5;
+
+    class ItemScanned(Event):
+        def __init__(self, sender, obj: InventreeObject):
+            super().__init__()
+            self.sender = sender
+            self.obj = obj
+
+    def __init__(self,
+        id: str | None = None,
+        whitelist: List[Type[InventreeObject]] = [],
+        placeholder: str | None = None,
+        input_id: str | None = None,
+    ) -> None:
+        self.input_id = input_id
+        self.whitelist = whitelist
+        self.placeholder = placeholder
+
+        self.search_cache : Dict[Type[InventreeObject], Dict[str, List[InventreeObject]]] = {}
+
+        super().__init__(id=id);
+
+    async def search(self, search_term: str) -> None:
+        for cls in self.whitelist:
+            cls_items = cls.list(api, search=search_term, limit=self.search_limit)
+            self.search_cache.setdefault(cls, {})[search_term] = cls_items
+
+        self.dropdown.sync_state(self.dropdown.input_widget.value, self.dropdown.input_widget.cursor_position)
+
+    async def on_input_changed(self, message: Input.Changed) -> None:
+        text = message.value.strip()
+        # Kind of a hack: If the input starts with {, don't search
+        if text.startswith("{") or len(text) <= 2:
+            return
+        self.run_worker(self.search(text), exclusive=True)
+
+    def get_dropdown_items(self, input_state: InputState) -> list[InventreeDropdownItem]:
+        text = input_state.value
+        text = text.strip()
+        items = {}
+        for cls, d in self.search_cache.items():
+            for t, cls_items in d.items():
+                for item in cls_items:
+                    items[(cls, item.pk)] = item
+
+        minimum_similarity = 0.5
+
+        l = [(search_similarity(text, i.name), i) for i in items.values()]
+        l = [(s,i) for s,i in l if s > minimum_similarity]
+        sorted_by_similarity = sorted(l, key=lambda tup: tup[0], reverse=True)
+
+        return [InventreeDropdownItem.create(i) for s,i in  sorted_by_similarity]
+
+    def compose(self) -> ComposeResult:
+        self.dropdown = Dropdown(items=self.get_dropdown_items)
+        yield AutoComplete(
+            Input(id=self.input_id, placeholder=self.placeholder),
+            self.dropdown
+        )
+
+    async def scan_barcode(self, text: str) -> None:
+        try:
+            obj = scan_barcode(text, self.whitelist)
+        except ApiException as e:
+            event = IgnorableErrorEvent(self, "Scan Error", str(e))
+            self.post_message(event)
+            return
+        except WhitelistException as e:
+            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
+            return
+        self.post_message(self.ItemScanned(self, obj))
+
+    async def search_single_item(self, text: str) -> None:
+        # Return the first item that matches in the search.
+        # Could maybe use the search cache instead of doing a new search,
+        # but the cache may not be updated when the user submits their input
+        for cls in self.whitelist:
+            try:
+                cls_items = cls.list(api, search=text, limit=1)
+            except RequestException as e:
+                pass
+
+            if len(cls_items) > 0:
+                self.post_message(self.ItemScanned(self, cls_items[0]))
+                return
+
+        event = IgnorableErrorEvent(self, "No Results", f"The search term '{text}' yielded no results")
+        self.post_message(event)
+
+    async def on_input_submitted(self, message: Input.Submitted) -> None:
+        text = message.value.strip()
+        if text.startswith("{"):
+            self.run_worker(self.scan_barcode(text), exclusive=True)
+        else:
+            self.run_worker(self.search_single_item(text), exclusive=True)
+
+        message.input.clear()
