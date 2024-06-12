@@ -83,7 +83,10 @@ class InventreeDropdownItem(DropdownItem):
 
     @classmethod
     def create(cls, inventree_object: InventreeObject) -> "InventreeDropdownItem":
-        return cls(inventree_object=inventree_object, main=inventree_object.name)
+        return cls(
+            inventree_object=inventree_object,
+            main=inventree_object.name
+        )
 
 def search_similarity(search_term: str, string: str):
     similarity_ratio = fuzz.ratio(search_term.lower(), string.lower()) / 100
@@ -128,7 +131,7 @@ class InventreeScanner(Vertical):
             return
         text = message.value.strip()
         # Kind of a hack: If the input starts with {, don't search
-        if text.startswith("{") or len(text) <= 2:
+        if text.startswith("{") or len(text) <= 1:
             return
         self.search(text)
 
@@ -152,7 +155,9 @@ class InventreeScanner(Vertical):
         return [InventreeDropdownItem.create(i) for s,i in  sorted_by_similarity]
 
     def compose(self) -> ComposeResult:
-        self.dropdown = Dropdown(items=self.get_dropdown_items)
+        self.dropdown = Dropdown(
+                items=self.get_dropdown_items
+        )
         yield AutoComplete(
             Input(id=self.input_id, placeholder=self.placeholder),
             self.dropdown

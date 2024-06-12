@@ -353,7 +353,22 @@ class TransferItemsTab(Container):
         if destination is None:
             self.query_one("#destination").text = "None"
         else:
-            self.query_one("#destination").text = self.destination.name
+            dest = self.query_one("#destination")
+            dest.text = self.destination.name
+            self.get_destination_full_path(self.destination)
+
+    @work(exclusive=True, thread=True)
+    def get_destination_full_path(self, destination):
+        dest = self.query_one("#destination")
+
+        cur = self.destination
+        path = []
+        while cur is not None:
+            path = [cur.name] + path
+            cur = cur.getParentLocation()
+
+        fullpath = "/".join(path)
+        dest.text = f"{self.destination.name} ({fullpath})"
 
     async def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
         if message.sender.id == "transfer_destination_scanner":

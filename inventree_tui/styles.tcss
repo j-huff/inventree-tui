@@ -152,14 +152,13 @@ AutoComplete {
 }
 
 Dropdown {
-  max-width: 10;
+  max-width: 32;
   background: $primary-background;
 }
 
 InventreeScanner {
   height: 3;
 }
-
 
 .autocomplete--highlight-match {
   background: $primary-background;
