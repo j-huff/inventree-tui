@@ -1,5 +1,6 @@
 import logging
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.widget import Widget
@@ -32,30 +33,32 @@ class PartSearchTree(Widget):
     def add_part(self, cached_part: CachedPart, expand=False):
         node = self.part_tree.root.add(cached_part.part.name, data=cached_part, allow_expand=False, expand=False)
         if expand:
-            self.add_stock_items(node)
-            node.allow_expand = True
-            node.expand()
+            self.expand_part_node(node)
+        return node
 
     def add_stock_item(self, node, stock_item: CachedStockItem):
         location = stock_item.location.name if stock_item.location else ''
         node.add(f"Stock #{stock_item.item.pk}, location: {location}, Q: {stock_item.item.quantity}",
                 data=stock_item, allow_expand=False, expand=False)
 
+    @work(exclusive=False, thread=True)
+    async def expand_part_node(self, node):
+        self.add_stock_items(node)
+        node.allow_expand = True
+        node.expand()
+
     def add_stock_items(self, node):
+        s = node.label
+        node.label = f"{s} - Loading..."
         for stock_item in node.data.stock_items:
             self.add_stock_item(node, stock_item)
+        node.label = s
 
     def on_tree_node_selected(self, message: Tree.NodeSelected):
-        tree = message.control
         node = message.node
         logging.info(f"NODE SELECTED {node} {node.data}")
         if isinstance(node.data, CachedPart) and len(node.children) == 0:
-            self.add_stock_items(node)
-            node.allow_expand = True
-            node.expand()
-            return
-
-
+            self.expand_part_node(node)
 
 class PartSearchTab(Container):
     def compose(self) -> ComposeResult:
@@ -63,7 +66,12 @@ class PartSearchTab(Container):
         yield Static("Results",id="part_search_table_title", classes="table-title")
         yield PartSearchTree()
 
+    @work(exclusive=True, thread=True)
     async def handle_part_search_input(self, value: str):
+        tree = self.query_one(PartSearchTree)
+        tree.clear()
+        tree.set_root_label(f"Searching...")
+
         parts = part_search(value)
 
         if len(parts) == 0:
@@ -73,20 +81,17 @@ class PartSearchTab(Container):
             self.post_message(StatusChanged(self, msg))
             return
 
-        tree = self.query_one(PartSearchTree)
         tree.clear()
 
         self.post_message(StatusChanged(self, f"Search found {len(parts)} parts"))
         tree.set_root_label(f"Results: Found {len(parts)} parts")
+        #TODO: make this configurable
         max_expanded = 5
         for i, part in enumerate(parts):
-            tree.add_part(part, expand = i < max_expanded)
-
+            node = tree.add_part(part, expand = i < max_expanded)
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         if message.input.id == "part_search_input":
-            message.input.add_class("readonly")
-            await self.handle_part_search_input(message.input.value)
-            message.input.remove_class("readonly")
+            self.handle_part_search_input(message.input.value)
             message.input.clear()
 
