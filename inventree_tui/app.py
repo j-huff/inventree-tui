@@ -317,9 +317,22 @@ class TransferItemsTab(Container):
 
     def compose(self) -> ComposeResult:
         #yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
-        yield InventreeScanner(id="transfer_destination_scanner", whitelist=[StockLocation], placeholder="Scan Location Barcode", input_id="transfer_destination_input")
+        yield InventreeScanner(
+            id="transfer_destination_scanner",
+            whitelist=[StockLocation],
+            placeholder="Scan Location Barcode",
+            input_id="transfer_destination_input",
+            autocomplete=True
+        )
         yield LabeledText("Destination", "None", id="destination")
-        yield Input(placeholder="Scan Items", id="transfer_item_input")
+        #yield Input(placeholder="Scan Items", id="transfer_item_input")
+        yield InventreeScanner(
+            id="transfer_items_scanner",
+            whitelist=[StockItem],
+            placeholder="Scan Items",
+            input_id="transfer_item_input",
+            autocomplete=True
+        )
         with Horizontal():
             yield ModelDataTable(
                 model_class=CachedStockItemRow,
@@ -333,13 +346,7 @@ class TransferItemsTab(Container):
             yield Button("Cancel", id="cancel_button", variant="default")
 
     async def on_mount(self):
-
         table = self.query_one("#transfer-items-table")
-        #TODO: remove this after testing
-        #await self.handle_item_input('{"stockitem":338}')
-        #await self.handle_item_input('{"stockitem":338}')
-        #await self.handle_item_input('{"stockitem":339}')
-        #await self.handle_item_input('{"stockitem":337}')
 
     def watch_destination(self, destination):
         logging.debug(f"WATCH DESTINATION {destination}")
@@ -348,28 +355,14 @@ class TransferItemsTab(Container):
         else:
             self.query_one("#destination").text = self.destination.name
 
-    async def handle_item_input(self, value: str):
-        try:
-            item = CachedStockItem(scan_barcode(value, [StockItem]))
-            table = self.query_one("#transfer-items-table")
-
-            await table.add_item(CachedStockItemRow(item))
-        except ApiException as e:
-            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
-        except WhitelistException as e:
-            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
-
     async def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
-        location = message.obj
-        self.destination = location
-
-    async def on_input_submitted(self, message: Input.Submitted) -> None:
-
-        if message.input.id == "transfer_item_input":
-            message.input.add_class("readonly")
-            await self.handle_item_input(message.input.value)
-            message.input.remove_class("readonly")
-            message.input.clear()
+        if message.sender.id == "transfer_destination_scanner":
+            self.destination = message.obj
+            self.query_one("#transfer_item_input").focus()
+        elif message.sender.id == "transfer_items_scanner":
+            item = CachedStockItem(message.obj)
+            table = self.query_one("#transfer-items-table")
+            await table.add_item(CachedStockItemRow(item))
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "transfer_done_button":
@@ -399,13 +392,15 @@ class TransferItemsTab(Container):
             table = self.query_one("#transfer-items-table")
             await table.clear_data()
 
-#class CheckInItemsTab(Container):
-#    def compose(self) -> ComposeResult:
-#        yield Static("Check-In Items Tab")
-
 class CheckInItemsTab(Container):
     def compose(self) -> ComposeResult:
-        yield Input(placeholder="Scan Items", id="checkin_item_input")
+        yield InventreeScanner(
+            id="checkin_items_scanner",
+            whitelist=[StockItem],
+            placeholder="Scan Items",
+            input_id="checkin_item_input",
+            autocomplete=False
+        )
         yield Static("History Table",id="checkin_table_title", classes="table-title")
         with Horizontal():
             yield ModelDataTable(
@@ -418,18 +413,11 @@ class CheckInItemsTab(Container):
             yield Button("Clear History", id="checkin_clear_button", variant="primary")
 
     async def on_mount(self):
-
         table = self.query_one("#checkin_items_table")
-        #TODO: remove this after testing
-        #await self.handle_item_input('{"stockitem":338}')
-        #await self.handle_item_input('{"stockitem":338}')
-        #await self.handle_item_input('{"stockitem":339}')
-        #await self.handle_item_input('{"stockitem":9}')
 
-    async def handle_item_input(self, value: str):
-        try:
-            item = CachedStockItem(scan_barcode(value, [StockItem]))
-            #table = self.query_one("#checkin_items_table")
+    def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
+        if message.sender.id == "checkin_items_scanner":
+            item = CachedStockItem(message.obj)
             if item.default_location is None:
                 errmsg = f"Cannot check-in Stock #{item._stock_item.pk}: No default location"
                 self.post_message(StatusChanged(self, errmsg))
@@ -437,21 +425,8 @@ class CheckInItemsTab(Container):
                 self.post_message(event)
                 return
 
-            logging.info(f"POSTING CHECK IN BEGIN {item}")
             event = CheckInBeginEvent(item)
             self.post_message(event)
-            #await table.add_item(CachedStockItemRow(item))
-        except ApiException as e:
-            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
-        except WhitelistException as e:
-            self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
-
-    async def on_input_submitted(self, message: Input.Submitted) -> None:
-        if message.input.id == "checkin_item_input":
-            message.input.add_class("readonly")
-            await self.handle_item_input(message.input.value)
-            message.input.remove_class("readonly")
-            message.input.clear()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         table = self.query_one("#checkin_items_table")
@@ -503,7 +478,7 @@ class InventreeApp(App):
 
             try:
                 if item.stock_location is not None and item.stock_location.pk == destination.pk:
-                    self.post_message(StatusChanged(self, "Stock #{item._stock_item.pk} was already at {destination.name}"))
+                    self.post_message(StatusChanged(self, f"Stock #{item._stock_item.pk} was already at {destination.name}"))
                 else:
                     transfer_items([item], destination)
             except Exception as e:

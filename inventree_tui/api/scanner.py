@@ -34,7 +34,7 @@ class WhitelistException(Exception):
         super().__init__(self.message)
 
     def __str__(self):
-        return f'{self.message}: {self.item} not in {self.whitelist}'
+        return f'{self.message}: item not one of {self.whitelist}'
 
 def item_in_whitelist(item, whitelist: List[Type[InventreeObject]]):
     for cls in whitelist:
@@ -104,10 +104,12 @@ class InventreeScanner(Vertical):
         whitelist: List[Type[InventreeObject]] = [],
         placeholder: str | None = None,
         input_id: str | None = None,
+        autocomplete: bool = False
     ) -> None:
         self.input_id = input_id
         self.whitelist = whitelist
         self.placeholder = placeholder
+        self.autocomplete_enabled = autocomplete
 
         self.search_cache : Dict[Type[InventreeObject], Dict[str, List[InventreeObject]]] = {}
 
@@ -122,6 +124,8 @@ class InventreeScanner(Vertical):
         self.dropdown.sync_state(self.dropdown.input_widget.value, self.dropdown.input_widget.cursor_position)
 
     def on_input_changed(self, message: Input.Changed) -> None:
+        if not self.autocomplete_enabled:
+            return
         text = message.value.strip()
         # Kind of a hack: If the input starts with {, don't search
         if text.startswith("{") or len(text) <= 2:
@@ -129,6 +133,8 @@ class InventreeScanner(Vertical):
         self.search(text)
 
     def get_dropdown_items(self, input_state: InputState) -> list[InventreeDropdownItem]:
+        if not self.autocomplete_enabled:
+            return []
         text = input_state.value
         text = text.strip()
         items = {}
