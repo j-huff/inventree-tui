@@ -1,18 +1,16 @@
 import logging
-from typing import cast
-from textual.app import ComposeResult
-from textual.widget import Widget
-from typing import List, Type, Dict, Tuple, Set
-from inventree.base import InventreeObject
-from .base import api, ApiException
-from requests.exceptions import RequestException
-from dataclasses import dataclass
 import json
-from fuzzywuzzy import fuzz
-from textual.events import Event
-from inventree_tui.error_screen import IgnorableErrorEvent
-from textual import work
+from typing import List, Type, Dict
 
+from dataclasses import dataclass
+from inventree.base import InventreeObject
+from requests.exceptions import RequestException
+from fuzzywuzzy import fuzz
+
+from textual import work
+from textual.app import ComposeResult
+from textual.containers import Vertical
+from textual.events import Event
 from textual.widgets import (
     Input,
 )
@@ -24,7 +22,9 @@ from textual_autocomplete import (
     InputState
 )
 
-from textual.containers import Vertical
+from inventree_tui.error_screen import IgnorableErrorEvent
+from .base import api, ApiException
+
 
 class WhitelistException(Exception):
     def __init__(self, item, whitelist):
@@ -60,22 +60,21 @@ def scan_barcode(text, whitelist: List[Type[InventreeObject]]) -> Type[Inventree
         cls = item_class(item, whitelist)
         if cls is None:
             raise WhitelistException(item, whitelist)
-        else:
-            return scan_to_object(item, cls)
+        return scan_to_object(item, cls)
 
     except RequestException as e:
         if e.response is not None:
-            raise ApiException(f"{e.response.body}", status_code=e.response.status_code)
-        else:
-            status = e.args[0]['status_code']
-            if status != 200:
-                raise ApiException(f"Status Code {status}", status_code=status)
-            try:
-                body = json.loads(e.args[0]['body'])
-            except json.JSONDecodeError:
-                raise ApiException(f"failed to decode body", status_code=status)
+            raise ApiException(f"{e.response.body}", status_code=e.response.status_code) from e
 
-            raise ApiException(f"{body['error']}", status_code=status)
+        status = e.args[0]['status_code']
+        if status != 200:
+            raise ApiException(f"Status Code {status}", status_code=status) from e
+        try:
+            body = json.loads(e.args[0]['body'])
+        except json.JSONDecodeError as e2:
+            raise ApiException("Failed to decode body", status_code=status) from e2
+
+        raise ApiException(f"{body['error']}", status_code=status) from e
 
 @dataclass
 class InventreeDropdownItem(DropdownItem):
@@ -94,7 +93,7 @@ def search_similarity(search_term: str, string: str):
 
 class InventreeScanner(Vertical):
     classes = "autocomplete_container"
-    search_limit = 5;
+    search_limit = 5
 
     class ItemScanned(Event):
         def __init__(self, sender, obj: InventreeObject):
@@ -102,21 +101,24 @@ class InventreeScanner(Vertical):
             self.sender = sender
             self.obj = obj
 
+    # pylint: disable=redefined-builtin,too-many-arguments
     def __init__(self,
         id: str | None = None,
-        whitelist: List[Type[InventreeObject]] = [],
+        whitelist: List[Type[InventreeObject]] | None = None,
         placeholder: str | None = None,
         input_id: str | None = None,
         autocomplete: bool = False
     ) -> None:
         self.input_id = input_id
-        self.whitelist = whitelist
+        self.whitelist = whitelist if whitelist is not None else []
         self.placeholder = placeholder
         self.autocomplete_enabled = autocomplete
-
         self.search_cache : Dict[Type[InventreeObject], Dict[str, List[InventreeObject]]] = {}
+        self.dropdown = Dropdown(
+            items=self.get_dropdown_items
+        )
 
-        super().__init__(id=id);
+        super().__init__(id=id)
 
     @work(exclusive=False, thread=True)
     def search(self, search_term: str) -> None:
@@ -124,7 +126,10 @@ class InventreeScanner(Vertical):
             cls_items = cls.list(api, search=search_term, limit=self.search_limit)
             self.search_cache.setdefault(cls, {})[search_term] = cls_items
 
-        self.dropdown.sync_state(self.dropdown.input_widget.value, self.dropdown.input_widget.cursor_position)
+        self.dropdown.sync_state(
+            self.dropdown.input_widget.value,
+            self.dropdown.input_widget.cursor_position
+        )
 
     def on_input_changed(self, message: Input.Changed) -> None:
         if not self.autocomplete_enabled:
@@ -142,7 +147,7 @@ class InventreeScanner(Vertical):
         text = text.strip()
         items = {}
         for cls, d in self.search_cache.items():
-            for t, cls_items in d.items():
+            for cls_items in d.values():
                 for item in cls_items:
                     items[(cls, item.pk)] = item
 
@@ -155,9 +160,6 @@ class InventreeScanner(Vertical):
         return [InventreeDropdownItem.create(i) for s,i in  sorted_by_similarity]
 
     def compose(self) -> ComposeResult:
-        self.dropdown = Dropdown(
-                items=self.get_dropdown_items
-        )
         yield AutoComplete(
             Input(id=self.input_id, placeholder=self.placeholder),
             self.dropdown
@@ -185,13 +187,16 @@ class InventreeScanner(Vertical):
             try:
                 cls_items = cls.list(api, search=text, limit=1)
             except RequestException as e:
-                pass
+                self.post_message(IgnorableErrorEvent(self, "Search Failed", str(e)))
 
             if len(cls_items) > 0:
                 self.post_message(self.ItemScanned(self, cls_items[0]))
                 return
 
-        event = IgnorableErrorEvent(self, "No Results", f"The search term '{text}' yielded no results")
+        event = IgnorableErrorEvent(self,
+            "No Results",
+            f"The search term '{text}' yielded no results"
+        )
         self.post_message(event)
 
     def on_input_submitted(self, message: Input.Submitted) -> None:

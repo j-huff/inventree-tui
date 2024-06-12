@@ -17,20 +17,13 @@ class CachedStockItem():
         self._stock_location = None
         self._destination = None
 
-    def transfer(self, destination=None):
-        if destination is not None:
-            self._destination = destination
-        if self._destination is None:
-            raise Exception("Cannot transfer, no destination")
-        transfer_items([self], self._destination)
-
     @property
     def item(self) -> StockItem:
         return self._stock_item
 
     @property
     def part(self) -> Part:
-        if self._part == None:
+        if self._part is None:
             self._part = self._stock_item.getPart()
         return self._part
 
@@ -40,6 +33,10 @@ class CachedStockItem():
         if default_location_pk is None:
             return None
         return StockLocation(api, default_location_pk)
+
+    @property
+    def pk(self) -> int:
+        return self._stock_item.pk
 
     @property
     def stock_location(self) -> StockLocation:
@@ -64,6 +61,10 @@ class CachedStockItem():
             return self._stock_item.quantity
         return self._quantity
 
+    @property
+    def original_quantity(self):
+        return self._stock_item.quantity
+
     @quantity.setter
     def quantity(self, q):
         self._quantity = q
@@ -75,4 +76,3 @@ class CachedStockItem():
         if isinstance(other, CachedStockItem):
             return self._stock_item.pk == self._stock_item.pk
         return False
-

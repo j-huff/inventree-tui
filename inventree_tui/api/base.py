@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import load_dotenv
 from inventree.api import InvenTreeAPI
@@ -26,7 +27,11 @@ if not host or not token:
         error_msg("InvenTree API host", "INVENTREE_API_HOST", "https://inventree.localhost")
 
     if not token:
-        error_msg("InvenTree API token", "INVENTREE_API_TOKEN", "inv-f0e03dc3a7e0a6421ffba5d219858f52a85da3ca-20240607")
-    exit(1)
+        error_msg("InvenTree API token",
+            "INVENTREE_API_TOKEN",
+            "inv-f0e03dc3a7e0a6421ffba5d219858f52a85da3ca-20240607"
+        )
+
+    sys.exit(1)
 
 api = InvenTreeAPI(host=host, token=token)

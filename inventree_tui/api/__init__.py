@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 import json
 import logging
@@ -36,8 +37,8 @@ class RowBaseModel(BaseModel):
             else:
                 name = k
 
-            logging.info(f"FIELD {k} : {v} : {type(v)}")
-            if v.frozen == False:
+            logging.info("FIELD %s : %s : %s", k, v, type(v))
+            if not v.frozen:
                 field_names.append(name)
 
         return field_names
@@ -46,19 +47,22 @@ class RowBaseModel(BaseModel):
     def field_display_name(cls, field: str) -> str:
         return field
 
-    # Used for updating internal data after modification 
-    def update(self, other, validate=False):
-        NotImplementedError(f"update(other) has not been implemented for {self.__class__}");
+    # Used for updating internal data after modification
+    def update(self, other: RowBaseModel, validate=False):
+        raise NotImplementedError(f"update(other) has not been implemented for {self.__class__}")
 
     def title_name(self):
-        NotImplementedError(f"title_name() has not been implemented for {self.__class__}");
+        raise NotImplementedError(f"title_name() has not been implemented for {self.__class__}")
 
 
 class CachedStockItemRowModel(RowBaseModel):
-    stock_number: int = Field(frozen=True) 
+    stock_number: int = Field(frozen=True)
     part_name: str = Field(frozen=True)
     quantity: int = Field(frozen=False)
     current_location: str = Field(frozen=True)
+
+    def update(self, other, validate=False):
+        raise NotImplementedError(f"update(other) has not been implemented for {self.__class__}")
 
     def title_name(self):
         return f"Stock #{self.stock_number}"
@@ -76,8 +80,8 @@ class CachedStockItemRowModel(RowBaseModel):
 def transfer_items(items: List[CachedStockItem], location: StockLocation):
     _items = []
     for item in items:
-        _items.append({"pk":item._stock_item.pk, "quantity": item.quantity})
-        if item.quantity != item._stock_item.quantity:
+        _items.append({"pk":item.pk, "quantity": item.quantity})
+        if item.quantity != item.original_quantity:
             #TODO: implement a screen that will help you deal with the stock splits
             raise NotImplementedError("Quantity other that 'ALL' not implemented (yet)")
 
@@ -103,7 +107,7 @@ class CachedStockItemRow(CachedStockItemRowModel):
 
     def update(self, other, validate=False, allow_greater=False):
         if validate:
-            oq = self._cached_stock_item._stock_item.quantity
+            oq = self._cached_stock_item.original_quantity
             if not allow_greater and other.quantity > oq:
                 raise ValueError(f"Quantity is greater than the original stock quantity ({oq})")
 
@@ -118,12 +122,15 @@ class CachedStockItemRow(CachedStockItemRowModel):
 
 
 class CachedStockItemCheckInRowModel(RowBaseModel):
-    stock_number: int = Field(frozen=True) 
+    stock_number: int = Field(frozen=True)
     part_name: str = Field(frozen=True)
     quantity: int = Field(frozen=True)
     previous_location: str = Field(frozen=True)
     new_location: str = Field(frozen=True)
     timestamp: datetime = Field(frozen=True)
+
+    def update(self, other, validate=False):
+        pass
 
     def title_name(self):
         return f"Stock #{self.stock_number}"
@@ -163,7 +170,7 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
 
     def update(self, other, validate=False, allow_greater=False):
         if validate:
-            oq = self._cached_stock_item._stock_item.quantity
+            oq = self._cached_stock_item.original_quantity
             if not allow_greater and other.quantity > oq:
                 raise ValueError(f"Quantity is greater than the original stock quantity ({oq})")
 
