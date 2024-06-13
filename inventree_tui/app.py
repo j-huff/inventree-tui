@@ -113,7 +113,6 @@ class TransferItemsTab(Container):
     destination : StockLocation | None = reactive(None)
 
     def compose(self) -> ComposeResult:
-        #yield Input(placeholder="Scan Location Barcode", id="transfer_destination_input")
         yield InventreeScanner(
             id="transfer_destination_scanner",
             whitelist=[StockLocation],
@@ -122,13 +121,12 @@ class TransferItemsTab(Container):
             autocomplete=True
         )
         yield LabeledText("Destination", "None", id="destination")
-        #yield Input(placeholder="Scan Items", id="transfer_item_input")
         yield InventreeScanner(
             id="transfer_items_scanner",
             whitelist=[StockItem],
             placeholder="Scan Items",
             input_id="transfer_item_input",
-            autocomplete=True
+            autocomplete=False
         )
         with Horizontal():
             yield ModelDataTable(

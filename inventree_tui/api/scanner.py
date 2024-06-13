@@ -106,12 +106,14 @@ class InventreeScanner(Vertical):
         whitelist: List[Type[InventreeObject]] | None = None,
         placeholder: str = "",
         input_id: str | None = None,
-        autocomplete: bool = False
+        autocomplete: bool = False,
+        search: bool = False,
     ) -> None:
         self.input_id = input_id
         self.whitelist = whitelist if whitelist is not None else []
         self.placeholder = placeholder
         self.autocomplete_enabled = autocomplete
+        self.search_enabled = search
         self.search_cache : Dict[Type[InventreeObject], Dict[str, List[InventreeObject]]] = {}
         self.dropdown = Dropdown(
             items=self.get_dropdown_items
@@ -202,7 +204,7 @@ class InventreeScanner(Vertical):
         text = message.value.strip()
         if text.startswith("{"):
             self.scan_barcode(text)
-        elif len(text) > 0:
+        elif len(text) > 0 and (self.search_enabled or self.autocomplete_enabled):
             self.search_single_item(text)
 
         message.input.clear()
