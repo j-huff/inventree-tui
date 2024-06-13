@@ -18,9 +18,8 @@ from textual.widgets import (
 )
 
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
-from .part_search import PartSearchTab
 from .status import StatusChanged
-from .tabs import TransferItemsTab, CheckInItemsTab
+from .tabs import TransferItemsTab, CheckInItemsTab, PartSearchTab
 
 logging.basicConfig(
     level="NOTSET",

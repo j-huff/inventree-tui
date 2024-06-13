@@ -8,10 +8,10 @@ from textual.widgets import (
     Tree,
 )
 
-from .api import CachedStockItem
-from .api.part_search import part_search, CachedPart
-from .error_screen import IgnorableErrorEvent
-from .status import StatusChanged
+from inventree_tui.api import CachedStockItem
+from inventree_tui.api.part_search import part_search, CachedPart
+from inventree_tui.error_screen import IgnorableErrorEvent
+from inventree_tui.status import StatusChanged
 
 class PartSearchTree(Widget):
     def __init__(self, *args, **kwargs):
@@ -66,7 +66,7 @@ Stock #{stock_item.item.pk}, location: {location}, Q: {stock_item.item.quantity}
 class PartSearchTab(Container):
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Search Parts", id="part_search_input")
-        yield Static("Results",id="part_search_table_title", classes="table-title")
+        yield Static("Results", id="part_search_table_title", classes="table-title")
         yield PartSearchTree()
 
     @work(exclusive=True, thread=True)
@@ -76,6 +76,7 @@ class PartSearchTab(Container):
         tree.set_root_label("Searching...")
 
         parts = part_search(value)
+        tree.set_root_label(f"Results: Found {len(parts)} parts")
 
         if len(parts) == 0:
             msg = "The part search yielded no results."
@@ -84,10 +85,7 @@ class PartSearchTab(Container):
             self.post_message(StatusChanged(self, msg))
             return
 
-        tree.clear()
-
         self.post_message(StatusChanged(self, f"Search found {len(parts)} parts"))
-        tree.set_root_label(f"Results: Found {len(parts)} parts")
         #TODO: make this configurable
         max_expanded = 5
         for i, part in enumerate(parts):
