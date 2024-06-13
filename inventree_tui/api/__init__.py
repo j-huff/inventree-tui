@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Dict
 
 from inventree.stock import StockItem, StockLocation
 from pydantic import BaseModel, PrivateAttr
@@ -46,9 +46,24 @@ class RowBaseModel(BaseModel):
 
         return field_names
 
+
+    @classmethod
+    def column_fields(cls) -> List[str]:
+        return [k for k, v in cls.field_display_dict().items() if v is not None]
+
+    # This should be overwritten
+    @classmethod
+    def field_display_dict(cls) -> Dict[str, str | None]:
+        keys = cls.get_field_names()
+        return {key: key for key in keys}
+
     @classmethod
     def field_display_name(cls, field: str) -> str:
-        return field
+        d = cls.field_display_dict()
+        res = d[field]
+        if res is None:
+            raise ValueError(f"Field should not be displayed: {field}")
+        return res
 
     # Used for updating internal data after modification
     def update(self, other: RowBaseModel, validate=False):
@@ -70,15 +85,6 @@ class CachedStockItemRowModel(RowBaseModel):
     def title_name(self):
         return f"Stock #{self.stock_number}"
 
-    @classmethod
-    def field_display_name(cls, field: str) -> str:
-        d = {
-            "stock_number": "Stock Number",
-            "part_name":"Part Name",
-            "quantity":"Quantity",
-            "current_location":"Current Location",
-        }
-        return d[field]
 
 def transfer_items(items: List[CachedStockItem], location: StockLocation):
     _items = []
@@ -91,37 +97,44 @@ def transfer_items(items: List[CachedStockItem], location: StockLocation):
     StockItem.adjustStockItems(api, method='transfer', items=_items, location=location.pk)
 
 class CachedStockItemRow(CachedStockItemRowModel):
-    _cached_stock_item: CachedStockItem = PrivateAttr(default=None)
+    cached_stock_item: CachedStockItem
+
+    def __init__(self, cached_stock_item: CachedStockItem):
+        super().__init__(
+            stock_number=cached_stock_item.pk,
+            part_name=cached_stock_item.part.name,
+            quantity=cached_stock_item.quantity,
+            current_location=cached_stock_item.stock_location_name
+        )
+        self.cached_stock_item = cached_stock_item
 
     def __hash__(self):
-        return hash(self._cached_stock_item)
+        return hash(self.cached_stock_item)
 
-    def __init__(self, cached_stock_item: CachedStockItem, **kwargs):
-        if cached_stock_item is not None:
-            super().__init__(
-                stock_number=cached_stock_item._stock_item.pk,
-                part_name=cached_stock_item.part.name,
-                quantity=cached_stock_item.quantity,
-                current_location=cached_stock_item.stock_location_name
-            )
-            self._cached_stock_item=cached_stock_item
-        else:
-            super().__init__(**kwargs)
+    @classmethod
+    def field_display_dict(cls):
+        return {
+            "stock_number": "Stock Number",
+            "part_name":"Part Name",
+            "quantity":"Quantity",
+            "current_location":"Current Location",
+            "cached_stock_item": None
+        }
 
     def update(self, other, validate=False, allow_greater=False):
         if validate:
-            oq = self._cached_stock_item.original_quantity
+            oq = self.cached_stock_item.original_quantity
             if not allow_greater and other.quantity > oq:
                 raise ValueError(f"Quantity is greater than the original stock quantity ({oq})")
 
         self.quantity = other.quantity
-        self._cached_stock_item.quantity = other.quantity
+        self.cached_stock_item.quantity = other.quantity
 
         return True
 
     @property
     def item(self):
-        return self._cached_stock_item
+        return self.cached_stock_item
 
 
 class CachedStockItemCheckInRowModel(RowBaseModel):
@@ -138,42 +151,35 @@ class CachedStockItemCheckInRowModel(RowBaseModel):
     def title_name(self):
         return f"Stock #{self.stock_number}"
 
+class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
+    cached_stock_item: CachedStockItem
+
+    def __init__(self, cached_stock_item: CachedStockItem):
+        super().__init__(
+            stock_number=cached_stock_item.pk,
+            part_name=cached_stock_item.part.name,
+            quantity=cached_stock_item.quantity,
+            previous_location=cached_stock_item.stock_location_name,
+            new_location=cached_stock_item.default_location.name,
+            timestamp=datetime.now(),
+        )
+        self.cached_stock_item = cached_stock_item
+
+    def __hash__(self):
+        #allows for duplicates
+        return hash(self.cached_stock_item.stock_item)
+
     @classmethod
-    def field_display_name(cls, field: str) -> str:
-        d = {
+    def field_display_dict(cls):
+        return {
             "stock_number": "Stock#",
             "part_name":"Part Name",
             "quantity":"Q",
             "previous_location":"Prev Loc",
             "new_location":"New Loc",
             "timestamp":"Check-In Timestamp",
+            "cached_stock_item": None
         }
-        return d[field]
-
-class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
-    _cached_stock_item: CachedStockItem = PrivateAttr(default=None)
-
-    def __hash__(self):
-        # This will allow for repeats
-        return hash(self._cached_stock_item._stock_item)
-
-    def __init__(self, cached_stock_item: CachedStockItem, **kwargs):
-        if cached_stock_item is not None:
-            part_name = cached_stock_item.part.name
-            if part_name is None:
-                part_name = "UNKNOWN"
-
-            super().__init__(
-                stock_number=cached_stock_item._stock_item.pk,
-                part_name=part_name,
-                quantity=cached_stock_item.quantity,
-                previous_location=cached_stock_item.stock_location_name,
-                new_location=cached_stock_item.default_location.name,
-                timestamp=datetime.now(),
-            )
-            self._cached_stock_item=cached_stock_item
-        else:
-            super().__init__(**kwargs)
 
     def update(self, other, validate=False, allow_greater=False):
         if validate:
@@ -188,4 +194,4 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
 
     @property
     def item(self):
-        return self._cached_stock_item
+        return self.cached_stock_item

@@ -9,7 +9,6 @@ from inventree.stock import StockItem, StockLocation
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.events import Event
 from textual.logging import TextualHandler
 from textual.reactive import reactive
 from textual.screen import ModalScreen
@@ -35,24 +34,17 @@ from inventree_tui.api import (
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
 from .status import StatusChanged
-from .model_data_table import ModelDataTable, RowEditScreen
-
+from .model_data_table import ModelDataTable
 
 logging.basicConfig(
     level="NOTSET",
     handlers=[TextualHandler()],
 )
 
-class CheckInBeginEvent(Event):
-    def __init__(self, item):
-        super().__init__()
-        self.item = item
-
-
 class LabeledText(Widget):
     """Generates a greeting."""
-    text = reactive("", recompose=True)  
-    label = reactive("", recompose=True)  
+    text = reactive("", recompose=True)
+    label = reactive("", recompose=True)
     DEFAULT_CSS = """
     LabeledText {
         layout: horizontal;
@@ -80,7 +72,7 @@ class CheckInScreen(ModalScreen):
             container.border_title = self.dialog_title
             yield Static(f"Current Location: {self.item.stock_location_name}")
             yield Static(f"Default Location: {self.item.default_location.name}")
-            yield Static(f"Confirm Check-In?", classes="dialog-question")
+            yield Static("Confirm Check-In?", classes="dialog-question")
             static = Static(self.error_message, id="check-errormsg", classes="error-msg")
             static.styles.display = "none"
             yield static
@@ -93,20 +85,17 @@ class CheckInScreen(ModalScreen):
         if event.button.id == "checkin-cancel":
             self.dismiss(None)
             return
-        elif event.button.id == "checkin-confirm":
+        if event.button.id == "checkin-confirm":
             self.dismiss((self.item, self.item.default_location))
             return
 
     def watch_error_message(self, msg: str) -> None:
-        try:
-            errmsg = cast(Static, self.query_one("#checkin-errormsg"))
-            errmsg.update(msg)
-            if len(msg) == 0:
-                errmsg.styles.display = "none"
-            else:
-                errmsg.styles.display = "block"
-        except:
-            pass
+        errmsg = cast(Static, self.query_one("#checkin-errormsg"))
+        errmsg.update(msg)
+        if len(msg) == 0:
+            errmsg.styles.display = "none"
+        else:
+            errmsg.styles.display = "block"
 
 
 class TransferItemsTab(Container):
@@ -140,21 +129,17 @@ class TransferItemsTab(Container):
             yield Static(" ")
             yield Button("Cancel", id="cancel_button", variant="default")
 
-    async def on_mount(self):
-        table = self.query_one("#transfer-items-table")
-
     def watch_destination(self, destination):
         if destination is None:
             self.query_one("#destination").text = "None"
         else:
             dest = self.query_one("#destination")
             dest.text = self.destination.name
-            self.get_destination_full_path(self.destination)
+            self.get_destination_full_path()
 
     @work(exclusive=True, thread=True)
-    def get_destination_full_path(self, destination):
+    def get_destination_full_path(self):
         dest = self.query_one("#destination")
-
         cur = self.destination
         path = []
         while cur is not None:
@@ -169,7 +154,7 @@ class TransferItemsTab(Container):
             self.destination = message.obj
             self.query_one("#transfer_item_input").focus()
         elif message.sender.id == "transfer_items_scanner":
-            item = CachedStockItem(message.obj)
+            item = CachedStockItem(stock_item=message.obj)
             table = cast(ModelDataTable, self.query_one("#transfer-items-table"))
             await table.add_item(CachedStockItemRow(item))
 
@@ -204,6 +189,9 @@ class TransferItemsTab(Container):
             await table.clear_data()
 
 class CheckInItemsTab(Container):
+    def __init__(self):
+        super().__init__()
+
     def compose(self) -> ComposeResult:
         yield InventreeScanner(
             id="checkin_items_scanner",
@@ -223,20 +211,40 @@ class CheckInItemsTab(Container):
         with Horizontal (classes="button-bar"):
             yield Button("Clear History", id="checkin_clear_button", variant="primary")
 
-    async def on_mount(self):
-        table = self.query_one("#checkin_items_table")
-
     def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
         if message.sender.id == "checkin_items_scanner":
-            item = CachedStockItem(message.obj)
+            item = CachedStockItem(stock_item=message.obj)
             if item.default_location is None:
-                errmsg = f"Cannot check-in Stock #{item._stock_item.pk}: No default location"
+                errmsg = f"Cannot check-in Stock #{item.pk}: No default location"
                 self.post_message(StatusChanged(self, errmsg))
                 event = IgnorableErrorEvent(self, "Check-In Error", errmsg)
                 self.post_message(event)
                 return
 
-            self.post_message(CheckInBeginEvent(item))
+            self.open_check_in_dialog(item)
+
+    def open_check_in_dialog(self, item):
+        dialog = CheckInScreen(item)
+
+        async def checkin_dialog_callback(args) -> None:
+            if args is None:
+                return
+            (item, destination) = args
+
+            try:
+                if item.stock_location is not None and item.stock_location.pk == destination.pk:
+                    self.post_message(StatusChanged(self, f"Stock #{item.pk} was already at {destination.name}"))
+                else:
+                    transfer_items([item], destination)
+            except Exception as e:
+                event = IgnorableErrorEvent(self, "Transfer Failed", str(e))
+                self.post_message(event)
+                return
+
+            table = cast(ModelDataTable, self.query_one("#checkin_items_table"))
+            await table.add_item(CachedStockItemCheckInRow(item))
+
+        self.app.push_screen(dialog, checkin_dialog_callback)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         table = cast(ModelDataTable, self.query_one("#checkin_items_table"))
@@ -272,35 +280,6 @@ class InventreeApp(App):
         dialog.title = event.title
         dialog.exception_message = event.message
         await self.push_screen(dialog)
-
-    async def on_model_data_table_row_edit(self, event: ModelDataTable.RowEdit):
-        #TODO: finish implementation
-        return
-        dialog = RowEditScreen(event.table, event.row_key)
-        await self.push_screen(dialog)
-
-    async def on_check_in_begin_event(self, event: CheckInBeginEvent):
-        dialog = CheckInScreen(event.item)
-
-        async def checkin_dialog_callback(args) -> None:
-            if args is None:
-                return
-            (item, destination) = args
-
-            try:
-                if item.stock_location is not None and item.stock_location.pk == destination.pk:
-                    self.post_message(StatusChanged(self, f"Stock #{item.pk} was already at {destination.name}"))
-                else:
-                    transfer_items([item], destination)
-            except Exception as e:
-                event = IgnorableErrorEvent(self, "Transfer Failed", str(e))
-                self.post_message(event)
-                return
-
-            table = cast(ModelDataTable, self.query_one("#checkin_items_table"))
-            await table.add_item(CachedStockItemCheckInRow(item))
-
-        await self.push_screen(dialog, checkin_dialog_callback)
 
 
     @work(exclusive=True)

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Type, Dict, cast
+import logging
+from typing import Type, Dict, cast, TypeVar, Generic
 from pydantic import ValidationError
 
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.events import Key
-from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets.data_table import RowKey
@@ -22,18 +21,14 @@ from textual.widgets import (
 
 from inventree_tui.api import RowBaseModel
 
+T = TypeVar('T', bound=RowBaseModel)
 class ModelDataTable(DataTable):
-    @dataclass
-    class RowEdit(Message):
-        table: ModelDataTable
-        row_key: RowKey
-
     def __init__(self,
-            model_class: Type[RowBaseModel],
+            model_class: Type[T],
             *args,
             sort_column_key: str | None = None,
             **kwargs):
-        self.data : Dict[str, RowBaseModel] = {} #reactive(set([]), recompose=True)
+        self.data : Dict[str, T] = {} #reactive(set([]), recompose=True)
         self.sort_column_key = None
 
         super().__init__(*args, **kwargs)
@@ -48,7 +43,8 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
         columns = self.model_class.get_field_names(by_alias=True)
         for col in columns:
             dn = self.model_class.field_display_name(col)
-            self.add_column(dn, key=col)
+            if dn is not None:
+                self.add_column(dn, key=col)
 
         self.cursor_type = "row"
         self.reload()
@@ -57,7 +53,7 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
     async def reload(self) -> None:
         await self.update()
 
-    async def add_item(self, item: RowBaseModel):
+    async def add_item(self, item: T):
         row_key = self.obj_row_key(item)
         key = cast(str, row_key.value)
         if key in self.data:
@@ -69,18 +65,22 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
         self.data = {}
         await self.update()
 
-    def obj_row_key(self, obj: RowBaseModel) -> RowKey:
+    def obj_row_key(self, obj: T) -> RowKey:
         return RowKey(value=str(hash(obj)))
 
-    async def update(self, data: Dict[str, RowBaseModel] | None = None) -> None:
+    async def update(self, data: Dict[str, T] | None = None) -> None:
         if data is None:
             data = self.data
 
-        columns = self.model_class.get_field_names()
+        #columns = self.model_class.get_field_names()
+        columns = self.model_class.column_fields()
+
         needs_sorted = False
         for key, obj in data.items():
             if key not in self.rows:
                 values = [getattr(obj, col) for col in columns]
+                logging.info("ADDING ROW %s", values)
+                logging.info("ADDING ROW KEY %s", key)
                 self.add_row(*values, key=key)
                 needs_sorted = True
 
@@ -106,8 +106,11 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
             self.sort(self.sort_column_key, reverse=True)
 
     async def on_data_table_row_selected(self, message: DataTable.RowSelected):
-        event = self.RowEdit(self, message.row_key)
-        self.post_message(event)
+        if message.row_key.value is None:
+            return
+        obj = self.data[message.row_key.value]
+        dialog = RowEditScreen(self, obj)
+        await self.app.push_screen(dialog)
 
     async def on_key(self, event: Key) -> None:
         if event.name == "delete" and len(self.data) > 0:
@@ -118,12 +121,12 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
             self.move_cursor(row=self.cursor_row-1)
             await self.update()
 
-class RowEditScreen(Screen):
+class RowEditScreen(Screen,  Generic[T]):
     dialog_title = reactive("Row Edit", recompose=True)
     start_values: reactive[Dict] = reactive({}, recompose=True)
     error_message = reactive("")
 
-    def __init__(self, table, row: RowBaseModel):
+    def __init__(self, table, row: T):
         super().__init__()
         self.table = table
         self.row = row
@@ -174,14 +177,14 @@ class RowEditScreen(Screen):
             return
 
         inputs = self.query(Input)
-        values : Dict[str, str] = {}
+
+        other = self.row.copy(deep=False)
         for i in inputs:
             if i.name is not None and i.value is not None:
-                values[i.name] = i.value
+                attr = getattr(other, i.name)
+                setattr(other, i.name, attr.__class__(i.value))
 
-        values = self.row.dict() | values
         try:
-            other = self.row.__class__(**values)
             self.row.update(other, validate=True)
         except ValidationError as e:
             msgs = [e2['msg'] for e2 in e.errors()]

@@ -1,30 +1,30 @@
+from pydantic import BaseModel, PrivateAttr, ConfigDict
+
 from inventree.part import Part
 from inventree.stock import StockItem, StockLocation
 
 from .base import api
 
+class CachedStockItem(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
-class CachedStockItem():
+    stock_item : StockItem
+    _part : Part | None = PrivateAttr(default=None)
+    _default_location : StockLocation | None = PrivateAttr(default=None)
+    _quantity : int | float | None = PrivateAttr(default=None)
+    _stock_location : StockLocation | None = PrivateAttr(default=None)
 
     def title_name(self):
-        return f"Stock #{self._stock_item.pk}"
-
-    def __init__(self, _stock_item: StockItem):
-        self._stock_item = _stock_item
-        self._part = None
-        self._default_location = None
-        self._quantity = None
-        self._stock_location = None
-        self._destination = None
+        return f"Stock #{self.stock_item.pk}"
 
     @property
     def item(self) -> StockItem:
-        return self._stock_item
+        return self.stock_item
 
     @property
     def part(self) -> Part:
         if self._part is None:
-            self._part = self._stock_item.getPart()
+            self._part = self.stock_item.getPart()
         return self._part
 
     @property
@@ -36,12 +36,12 @@ class CachedStockItem():
 
     @property
     def pk(self) -> int:
-        return self._stock_item.pk
+        return self.stock_item.pk
 
     @property
     def stock_location(self) -> StockLocation:
         if self._stock_location is None:
-            self._stock_location = self._stock_item.getLocation()
+            self._stock_location = self.stock_item.getLocation()
         return self._stock_location
 
     # Alias for stock_location
@@ -58,7 +58,7 @@ class CachedStockItem():
     @property
     def quantity(self):
         if self._quantity is None:
-            return self._stock_item.quantity
+            return self.stock_item.quantity
         return self._quantity
 
     @quantity.setter
@@ -67,12 +67,12 @@ class CachedStockItem():
 
     @property
     def original_quantity(self):
-        return self._stock_item.quantity
+        return self.stock_item.quantity
 
     def __hash__(self):
-        return hash(self._stock_item.pk)
+        return hash(self.stock_item.pk)
 
     def __eq__(self, other):
         if isinstance(other, CachedStockItem):
-            return self._stock_item.pk == self._stock_item.pk
+            return self.stock_item.pk == self.stock_item.pk
         return False

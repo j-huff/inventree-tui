@@ -16,7 +16,7 @@ class CachedPart(): # pylint: disable=too-few-public-methods
     def stock_items(self) -> List[CachedStockItem]:
         if self._stock_items is None:
             stock_items = StockItem.list(api, part=self.part.pk)
-            self._stock_items = [CachedStockItem(item) for item in stock_items]
+            self._stock_items = [CachedStockItem(stock_item=item) for item in stock_items]
         return self._stock_items
 
 def part_search(search_term="") -> List[CachedPart]:
