@@ -1,5 +1,3 @@
-import logging
-
 from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container
@@ -31,14 +29,20 @@ class PartSearchTree(Widget):
         self.part_tree.root.set_label(label)
 
     def add_part(self, cached_part: CachedPart, expand=False):
-        node = self.part_tree.root.add(cached_part.part.name, data=cached_part, allow_expand=False, expand=False)
+        node = self.part_tree.root.add(
+            cached_part.part.name,
+            data=cached_part,
+            allow_expand=False,
+            expand=False,
+        )
         if expand:
             self.expand_part_node(node)
         return node
 
     def add_stock_item(self, node, stock_item: CachedStockItem):
         location = stock_item.location.name if stock_item.location else ''
-        node.add(f"Stock #{stock_item.item.pk}, location: {location}, Q: {stock_item.item.quantity}",
+        node.add(f"""\
+Stock #{stock_item.item.pk}, location: {location}, Q: {stock_item.item.quantity}""",
                 data=stock_item, allow_expand=False, expand=False)
 
     @work(exclusive=False, thread=True)
@@ -56,7 +60,6 @@ class PartSearchTree(Widget):
 
     def on_tree_node_selected(self, message: Tree.NodeSelected):
         node = message.node
-        logging.info(f"NODE SELECTED {node} {node.data}")
         if isinstance(node.data, CachedPart) and len(node.children) == 0:
             self.expand_part_node(node)
 
@@ -70,7 +73,7 @@ class PartSearchTab(Container):
     async def handle_part_search_input(self, value: str):
         tree = self.query_one(PartSearchTree)
         tree.clear()
-        tree.set_root_label(f"Searching...")
+        tree.set_root_label("Searching...")
 
         parts = part_search(value)
 
@@ -88,10 +91,9 @@ class PartSearchTab(Container):
         #TODO: make this configurable
         max_expanded = 5
         for i, part in enumerate(parts):
-            node = tree.add_part(part, expand = i < max_expanded)
+            tree.add_part(part, expand = i < max_expanded)
 
     async def on_input_submitted(self, message: Input.Submitted) -> None:
         if message.input.id == "part_search_input":
             self.handle_part_search_input(message.input.value)
             message.input.clear()
-

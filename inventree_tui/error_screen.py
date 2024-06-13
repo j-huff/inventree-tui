@@ -16,6 +16,7 @@ class ErrorDialogScreen(Screen):
             yield Static(self.exception_message)
             yield Button("OK", variant="primary", id="ok")
 
+    # pylint: disable=unused-argument
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss()
 
@@ -25,4 +26,3 @@ class IgnorableErrorEvent(Event):
         self.sender = sender
         self.title = title
         self.message = message
-

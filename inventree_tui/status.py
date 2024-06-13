@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from textual.message import Message
 from textual.widget import Widget
 from textual.app import App
 from textual.events import Event

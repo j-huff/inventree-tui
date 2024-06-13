@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Type, Dict, cast
+from pydantic import ValidationError
 
+from textual import work
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.events import Key
@@ -16,11 +20,6 @@ from textual.widgets import (
     Label
 )
 
-from dataclasses import dataclass
-import logging
-from typing import Type, Dict, cast
-from pydantic import ValidationError
-
 from inventree_tui.api import RowBaseModel
 
 class ModelDataTable(DataTable):
@@ -29,32 +28,36 @@ class ModelDataTable(DataTable):
         table: ModelDataTable
         row_key: RowKey
 
-    def __init__(self, model_class: Type[RowBaseModel], sort_column_key: str | None = None, *args, **kwargs):
+    def __init__(self,
+            model_class: Type[RowBaseModel],
+            *args,
+            sort_column_key: str | None = None,
+            **kwargs):
         self.data : Dict[str, RowBaseModel] = {} #reactive(set([]), recompose=True)
         self.sort_column_key = None
 
         super().__init__(*args, **kwargs)
         self.model_class = model_class
-        logging.info(f"CREATED MODEL DATA TABLE WITH CLASS: {model_class}")
         self.sort_column_key = sort_column_key
-        if self.sort_column_key is not None and self.sort_column_key not in model_class.get_field_names(by_alias=True):
-            raise Exception(f"Not a valid sort column, options are {model_class.get_field_names(by_alias=True)}")
+        if self.sort_column_key is not None \
+            and self.sort_column_key not in model_class.get_field_names(by_alias=True):
+            raise ValueError(f"""\
+Not a valid sort column, options are {model_class.get_field_names(by_alias=True)}""")
 
-    async def on_mount(self) -> None:
+    def on_mount(self) -> None:
         columns = self.model_class.get_field_names(by_alias=True)
         for col in columns:
             dn = self.model_class.field_display_name(col)
             self.add_column(dn, key=col)
 
         self.cursor_type = "row"
-        self.zerbra_stipes = True
-        await self.reload()
+        self.reload()
 
+    @work
     async def reload(self) -> None:
         await self.update()
 
     async def add_item(self, item: RowBaseModel):
-        logging.info(f"ADDING ITEM: {item} to {self.data}")
         row_key = self.obj_row_key(item)
         key = cast(str, row_key.value)
         if key in self.data:
@@ -65,9 +68,6 @@ class ModelDataTable(DataTable):
     async def clear_data(self):
         self.data = {}
         await self.update()
-
-    def add_row(self, *cells, height=1, key=None, label=None):
-        super().add_row(*cells, height=height, key=key, label=label)
 
     def obj_row_key(self, obj: RowBaseModel) -> RowKey:
         return RowKey(value=str(hash(obj)))
@@ -89,20 +89,18 @@ class ModelDataTable(DataTable):
             if row_key.value not in data:
                 self.remove_row(row_key)
 
-        for row_key in self.rows.keys():
+        for row_key, _ in self.rows.items():
             if row_key.value is None:
                 continue
             obj = self.data[row_key.value]
-            cells = self.get_row(row_key)
-            for col_key in self.columns.keys():
+            #cells = self.get_row(row_key)
+            for col_key, _ in self.columns.items():
                 if col_key != "delete_button" and col_key.value is not None:
                     current_value = self.get_cell(row_key, col_key)
                     new_value = getattr(obj, col_key.value)
                     if current_value != new_value:
                         needs_sorted = True
-                        logging.info(f"VALUE CHANGED {current_value} -> {new_value}")
                         self.update_cell(row_key, col_key, value=new_value)
-                        logging.info(f"UPDATING CELL: {row_key.value} {col_key.value}")
 
         if self.sort_column_key is not None and needs_sorted:
             self.sort(self.sort_column_key, reverse=True)
@@ -112,9 +110,7 @@ class ModelDataTable(DataTable):
         self.post_message(event)
 
     async def on_key(self, event: Key) -> None:
-        logging.debug(f"{event}")
         if event.name == "delete" and len(self.data) > 0:
-            logging.debug(f"DELETE {self.cursor_row}")
             row = self.ordered_rows[self.cursor_row]
             row_key = row.key
             key = cast(str, row_key.value)
@@ -127,14 +123,14 @@ class RowEditScreen(Screen):
     start_values: reactive[Dict] = reactive({}, recompose=True)
     error_message = reactive("")
 
-    def __init__(self, table, row_key):
-        self.table = table
-        self.row = reactive(row_key.value, recompose=True)
+    def __init__(self, table, row: RowBaseModel):
         super().__init__()
+        self.table = table
+        self.row = row
+
         self.dialog_title = f"Row Edit: {self.row.title_name()}"
 
         editable = self.row.get_editable_fields()
-        logging.info(f"EDITABLE ROWS: {editable}")
         values = {}
         for name in editable:
             values[name] = getattr(self.row, name)
@@ -148,13 +144,12 @@ class RowEditScreen(Screen):
                 self.query_one("#errormsg").styles.display = "none"
             else:
                 self.query_one("#errormsg").styles.display = "block"
-        except:
+        except Exception:
             pass
 
     def compose(self) -> ComposeResult:
         with Container(id="row-edit-dialog") as container:
             container.border_title = self.dialog_title
-            logging.info(f"TITLE {self.dialog_title}")
             for key, val in self.start_values.items():
                 with Horizontal(classes="input_row"):
                     yield Label(f"{self.table.model_class.field_display_name(key)}:")
@@ -177,12 +172,12 @@ class RowEditScreen(Screen):
         if event.button.id == "cancel":
             self.dismiss(None)
             return
-        elif event.button.id != "ok":
-            return
+
         inputs = self.query(Input)
-        values = {}
+        values : Dict[str, str] = {}
         for i in inputs:
-            values[i.name] = i.value 
+            if i.name is not None and i.value is not None:
+                values[i.name] = i.value
 
         values = self.row.dict() | values
         try:

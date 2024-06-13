@@ -61,13 +61,13 @@ class CachedStockItem():
             return self._stock_item.quantity
         return self._quantity
 
-    @property
-    def original_quantity(self):
-        return self._stock_item.quantity
-
     @quantity.setter
     def quantity(self, q):
         self._quantity = q
+
+    @property
+    def original_quantity(self):
+        return self._stock_item.quantity
 
     def __hash__(self):
         return hash(self._stock_item.pk)

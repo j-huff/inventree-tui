@@ -1,9 +1,12 @@
-import httpx
+from typing import cast, List
 import logging
 import importlib
-from textual import work
-from typing import cast
 
+import httpx
+
+from inventree.stock import StockItem, StockLocation
+
+from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.events import Event
@@ -33,8 +36,6 @@ from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
 from .status import StatusChanged
 from .model_data_table import ModelDataTable, RowEditScreen
-
-from inventree.stock import StockItem, StockLocation
 
 
 logging.basicConfig(
@@ -145,7 +146,6 @@ class TransferItemsTab(Container):
         table = self.query_one("#transfer-items-table")
 
     def watch_destination(self, destination):
-        logging.debug(f"WATCH DESTINATION {destination}")
         if destination is None:
             self.query_one("#destination").text = "None"
         else:
@@ -193,7 +193,8 @@ class TransferItemsTab(Container):
 
             destination = cast(StockLocation, self.destination)
 
-            items = [row.item for row in table.data]
+            table_data = cast(List[CachedStockItemRow], table.data.values())
+            items = [row.item for row in table_data]
             transfer_items(items, destination)
 
             s = "s" if len(items) > 1 else ""
@@ -276,12 +277,11 @@ class InventreeApp(App):
 
     async def on_model_data_table_row_edit(self, event: ModelDataTable.RowEdit):
         #TODO: finish implementation
-        #return
+        return
         dialog = RowEditScreen(event.table, event.row_key)
         await self.push_screen(dialog)
 
     async def on_check_in_begin_event(self, event: CheckInBeginEvent):
-        logging.info("PUSHING CHECKIN SCREEN")
         dialog = CheckInScreen(event.item)
 
         async def checkin_dialog_callback(args) -> None:
@@ -291,7 +291,7 @@ class InventreeApp(App):
 
             try:
                 if item.stock_location is not None and item.stock_location.pk == destination.pk:
-                    self.post_message(StatusChanged(self, f"Stock #{item._stock_item.pk} was already at {destination.name}"))
+                    self.post_message(StatusChanged(self, f"Stock #{item.pk} was already at {destination.name}"))
                 else:
                     transfer_items([item], destination)
             except Exception as e:
@@ -334,7 +334,6 @@ You can upgrade to it by running: `pip install --upgrade {package_name}`"""
             self.post_message(StatusChanged(self, "Failed to check for update"))
 
     def on_status_changed(self, message: StatusChanged):
-        logging.info(f"STATUS CHANGED {message.value}")
         self.status_message = message.value
 
     def watch_status_message(self, status_message: str) -> None:

@@ -64,7 +64,7 @@ def scan_barcode(text, whitelist: List[Type[InventreeObject]]) -> Type[Inventree
 
     except RequestException as e:
         if e.response is not None:
-            raise ApiException(f"{e.response.body}", status_code=e.response.status_code) from e
+            raise ApiException(f"{e.response.text}", status_code=e.response.status_code) from e
 
         status = e.args[0]['status_code']
         if status != 200:
@@ -92,7 +92,6 @@ def search_similarity(search_term: str, string: str):
     return similarity_ratio
 
 class InventreeScanner(Vertical):
-    classes = "autocomplete_container"
     search_limit = 5
 
     class ItemScanned(Event):
@@ -105,7 +104,7 @@ class InventreeScanner(Vertical):
     def __init__(self,
         id: str | None = None,
         whitelist: List[Type[InventreeObject]] | None = None,
-        placeholder: str | None = None,
+        placeholder: str = "",
         input_id: str | None = None,
         autocomplete: bool = False
     ) -> None:
@@ -140,7 +139,7 @@ class InventreeScanner(Vertical):
             return
         self.search(text)
 
-    def get_dropdown_items(self, input_state: InputState) -> list[InventreeDropdownItem]:
+    def get_dropdown_items(self, input_state: InputState) -> list[DropdownItem]:
         if not self.autocomplete_enabled:
             return []
         text = input_state.value

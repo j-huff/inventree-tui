@@ -10,7 +10,7 @@ from .stock_item import CachedStockItem
 class CachedPart(): # pylint: disable=too-few-public-methods
     def __init__(self, part: Part):
         self.part = part
-        self._stock_items = None
+        self._stock_items : List[CachedStockItem] | None = None
 
     @property
     def stock_items(self) -> List[CachedStockItem]:

@@ -19,8 +19,10 @@ class RowBaseModel(BaseModel):
     @classmethod
     def get_field_names(cls, by_alias=False) -> list[str]:
         field_names = []
-        for k, v in cls.__fields__.items():
-            if by_alias and isinstance(v, FieldInfo) and v.alias is not None:
+        for k, v in cls.model_fields.items():
+            if by_alias and isinstance(v, FieldInfo) \
+                        and v.alias is not None \
+                        and isinstance(v.alias, str):
                 field_names.append(v.alias)
             else:
                 field_names.append(k)
@@ -30,15 +32,16 @@ class RowBaseModel(BaseModel):
     @classmethod
     def get_editable_fields(cls, by_alias=True) -> list[str]:
         field_names = []
-        for k, v in cls.__fields__.items():
-            name = None
-            if by_alias and isinstance(v, FieldInfo) and v.alias is not None:
-                name = v.alias
-            else:
-                name = k
+        for field_name, field_info in cls.model_fields.items():
 
-            logging.info("FIELD %s : %s : %s", k, v, type(v))
-            if not v.frozen:
+            name = None
+            if by_alias and isinstance(field_info, FieldInfo) and field_info.alias is not None:
+                name = field_info.alias
+            else:
+                name = field_name
+
+            logging.info("FIELD %s : %s : %s", field_name, field_info, type(field_info))
+            if not field_info.frozen and isinstance(name, str):
                 field_names.append(name)
 
         return field_names
@@ -93,7 +96,7 @@ class CachedStockItemRow(CachedStockItemRowModel):
     def __hash__(self):
         return hash(self._cached_stock_item)
 
-    def __init__(self, cached_stock_item: CachedStockItem = None, **kwargs):
+    def __init__(self, cached_stock_item: CachedStockItem, **kwargs):
         if cached_stock_item is not None:
             super().__init__(
                 stock_number=cached_stock_item._stock_item.pk,
@@ -154,11 +157,15 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
         # This will allow for repeats
         return hash(self._cached_stock_item._stock_item)
 
-    def __init__(self, cached_stock_item: CachedStockItem = None, **kwargs):
+    def __init__(self, cached_stock_item: CachedStockItem, **kwargs):
         if cached_stock_item is not None:
+            part_name = cached_stock_item.part.name
+            if part_name is None:
+                part_name = "UNKNOWN"
+
             super().__init__(
                 stock_number=cached_stock_item._stock_item.pk,
-                part_name=cached_stock_item.part.name,
+                part_name=part_name,
                 quantity=cached_stock_item.quantity,
                 previous_location=cached_stock_item.stock_location_name,
                 new_location=cached_stock_item.default_location.name,
