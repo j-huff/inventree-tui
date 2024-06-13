@@ -21,6 +21,7 @@ from inventree_tui.api import (
 from inventree_tui.error_screen import IgnorableErrorEvent
 from inventree_tui.status import StatusChanged
 from inventree_tui.model_data_table import ModelDataTable
+from inventree_tui.components import ButtonBar
 
 class CheckInScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
@@ -40,7 +41,7 @@ class CheckInScreen(ModalScreen):
             yield Static(f"Default Location: {self.item.default_location.name}")
             yield Static("Confirm Check-In?", classes="dialog-question")
             yield self.errmsg
-            with Horizontal (classes="button-bar"):
+            with ButtonBar (classes="button-bar"):
                 yield Button("Confirm", variant="success", id="checkin-confirm")
                 yield Static(" ")
                 yield Button("Cancel", variant="error", id="checkin-cancel")

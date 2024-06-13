@@ -16,7 +16,7 @@ from inventree_tui.api import (
     transfer_items,
     InventreeScanner,
 )
-from inventree_tui.components import LabeledText
+from inventree_tui.components import LabeledText, ButtonBar
 from inventree_tui.error_screen import IgnorableErrorEvent
 from inventree_tui.status import StatusChanged
 from inventree_tui.model_data_table import ModelDataTable
@@ -47,7 +47,7 @@ class TransferItemsTab(Container):
                 id="transfer-items-table",
                 zebra_stripes=True,
             )
-        with Horizontal (classes="button-bar"):
+        with ButtonBar (classes="button-bar"):
             yield Button("Done", id="transfer_done_button", variant="primary")
             yield Static(" ")
             yield Button("Cancel", id="cancel_button", variant="default")

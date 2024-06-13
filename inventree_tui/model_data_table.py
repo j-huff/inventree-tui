@@ -19,6 +19,7 @@ from textual.widgets import (
     Label
 )
 
+from inventree_tui.components import ButtonBar
 from inventree_tui.api import RowBaseModel
 
 T = TypeVar('T', bound=RowBaseModel)
@@ -168,7 +169,7 @@ class RowEditScreen(Screen,  Generic[T]):
             static = Static(self.error_message, id="errormsg", classes="error-msg")
             static.styles.display = "none"
             yield static
-            with Horizontal (classes="button-bar"):
+            with ButtonBar (classes="button-bar"):
                 yield Button("OK", variant="primary", id="ok")
                 yield Static(" ")
                 yield Button("Cancel", variant="error", id="cancel")
