@@ -1,256 +1,33 @@
-from typing import cast, List
+from typing import cast
 import logging
 import importlib
 
 import httpx
 
-from inventree.stock import StockItem, StockLocation
-
 from textual import work
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Vertical
 from textual.logging import TextualHandler
 from textual.reactive import reactive
-from textual.screen import ModalScreen
-from textual.widget import Widget
 from textual.widgets import (
-    Button,
     Header,
     Input,
     Label,
-    Static,
     TabbedContent,
     TabPane,
-)
-
-from inventree_tui.api import (
-    CachedStockItemCheckInRow,
-    CachedStockItemRow,
-    CachedStockItem,
-    transfer_items,
-    InventreeScanner,
 )
 
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .part_search import PartSearchTab
 from .status import StatusChanged
-from .model_data_table import ModelDataTable
+from .tabs import TransferItemsTab, CheckInItemsTab
 
 logging.basicConfig(
     level="NOTSET",
     handlers=[TextualHandler()],
 )
 
-class LabeledText(Widget):
-    """Generates a greeting."""
-    text = reactive("", recompose=True)
-    label = reactive("", recompose=True)
-    DEFAULT_CSS = """
-    LabeledText {
-        layout: horizontal;
-        height: auto;
-    }
-    """
 
-    def __init__(self, label, placeholder, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.label = label
-        self.text = placeholder
-    def compose(self) -> ComposeResult:
-        yield Label(f"{self.label}: {self.text}")
-
-class CheckInScreen(ModalScreen):
-    dialog_title = reactive("Row Edit", recompose=True)
-    error_message = reactive("", repaint=True)
-    def __init__(self, item):
-        super().__init__()
-        self.item = item
-        self.dialog_title = f"Check-In: {self.item.title_name()}"
-
-    def compose(self) -> ComposeResult:
-        with Container(id="checkin-dialog") as container:
-            container.border_title = self.dialog_title
-            yield Static(f"Current Location: {self.item.stock_location_name}")
-            yield Static(f"Default Location: {self.item.default_location.name}")
-            yield Static("Confirm Check-In?", classes="dialog-question")
-            static = Static(self.error_message, id="check-errormsg", classes="error-msg")
-            static.styles.display = "none"
-            yield static
-            with Horizontal (classes="button-bar"):
-                yield Button("Confirm", variant="success", id="checkin-confirm")
-                yield Static(" ")
-                yield Button("Cancel", variant="error", id="checkin-cancel")
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "checkin-cancel":
-            self.dismiss(None)
-            return
-        if event.button.id == "checkin-confirm":
-            self.dismiss((self.item, self.item.default_location))
-            return
-
-    def watch_error_message(self, msg: str) -> None:
-        errmsg = cast(Static, self.query_one("#checkin-errormsg"))
-        errmsg.update(msg)
-        if len(msg) == 0:
-            errmsg.styles.display = "none"
-        else:
-            errmsg.styles.display = "block"
-
-
-class TransferItemsTab(Container):
-    destination : StockLocation | None = reactive(None)
-
-    def compose(self) -> ComposeResult:
-        yield InventreeScanner(
-            id="transfer_destination_scanner",
-            whitelist=[StockLocation],
-            placeholder="Scan Location Barcode",
-            input_id="transfer_destination_input",
-            autocomplete=True
-        )
-        yield LabeledText("Destination", "None", id="destination")
-        yield InventreeScanner(
-            id="transfer_items_scanner",
-            whitelist=[StockItem],
-            placeholder="Scan Items",
-            input_id="transfer_item_input",
-            autocomplete=False
-        )
-        with Horizontal():
-            yield ModelDataTable(
-                model_class=CachedStockItemRow,
-                sort_column_key="part_name",
-                id="transfer-items-table",
-                zebra_stripes=True,
-            )
-        with Horizontal (classes="button-bar"):
-            yield Button("Done", id="transfer_done_button", variant="primary")
-            yield Static(" ")
-            yield Button("Cancel", id="cancel_button", variant="default")
-
-    def watch_destination(self, destination):
-        if destination is None:
-            self.query_one("#destination").text = "None"
-        else:
-            dest = self.query_one("#destination")
-            dest.text = self.destination.name
-            self.get_destination_full_path()
-
-    @work(exclusive=True, thread=True)
-    def get_destination_full_path(self):
-        dest = self.query_one("#destination")
-        cur = self.destination
-        path = []
-        while cur is not None:
-            path = [cur.name] + path
-            cur = cur.getParentLocation()
-
-        fullpath = "/".join(path)
-        dest.text = f"{self.destination.name} ({fullpath})"
-
-    async def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
-        if message.sender.id == "transfer_destination_scanner":
-            self.destination = message.obj
-            self.query_one("#transfer_item_input").focus()
-        elif message.sender.id == "transfer_items_scanner":
-            item = CachedStockItem(stock_item=message.obj)
-            table = cast(ModelDataTable, self.query_one("#transfer-items-table"))
-            await table.add_item(CachedStockItemRow(item))
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "transfer_done_button":
-            # Logic to transfer items to the location
-            errors = []
-            table = cast(ModelDataTable, self.query_one("#transfer-items-table"))
-            if len(table.data) == 0:
-                errors.append("No items have been scanned yet.")
-                self.query_one("#transfer_item_input").focus()
-            if self.destination is None:
-                errors.append("Destination not set.")
-                self.query_one("#transfer_destination_input").focus()
-            if len(errors) > 0:
-                self.post_message(IgnorableErrorEvent(self, "Submission Error", "\n".join(errors)))
-                self.post_message(StatusChanged(self, f"Error: {' '.join(errors)}"))
-                return
-
-            destination = cast(StockLocation, self.destination)
-
-            table_data = cast(List[CachedStockItemRow], table.data.values())
-            items = [row.item for row in table_data]
-            transfer_items(items, destination)
-
-            s = "s" if len(items) > 1 else ""
-            self.post_message(StatusChanged(self, f"Transferred {len(items)} stock item{s} to {destination.name}"))
-            await table.clear_data()
-
-        elif event.button.id == "cancel_button":
-            table = cast(ModelDataTable, self.query_one("#transfer-items-table"))
-            await table.clear_data()
-
-class CheckInItemsTab(Container):
-    def __init__(self):
-        super().__init__()
-
-    def compose(self) -> ComposeResult:
-        yield InventreeScanner(
-            id="checkin_items_scanner",
-            whitelist=[StockItem],
-            placeholder="Scan Items",
-            input_id="checkin_item_input",
-            autocomplete=False
-        )
-        yield Static("History Table",id="checkin_table_title", classes="table-title")
-        with Horizontal():
-            yield ModelDataTable(
-                model_class=CachedStockItemCheckInRow,
-                sort_column_key="timestamp",
-                id="checkin_items_table",
-                zebra_stripes=True,
-            )
-        with Horizontal (classes="button-bar"):
-            yield Button("Clear History", id="checkin_clear_button", variant="primary")
-
-    def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
-        if message.sender.id == "checkin_items_scanner":
-            item = CachedStockItem(stock_item=message.obj)
-            if item.default_location is None:
-                errmsg = f"Cannot check-in Stock #{item.pk}: No default location"
-                self.post_message(StatusChanged(self, errmsg))
-                event = IgnorableErrorEvent(self, "Check-In Error", errmsg)
-                self.post_message(event)
-                return
-
-            self.open_check_in_dialog(item)
-
-    def open_check_in_dialog(self, item):
-        dialog = CheckInScreen(item)
-
-        async def checkin_dialog_callback(args) -> None:
-            if args is None:
-                return
-            (item, destination) = args
-
-            try:
-                if item.stock_location is not None and item.stock_location.pk == destination.pk:
-                    self.post_message(StatusChanged(self, f"Stock #{item.pk} was already at {destination.name}"))
-                else:
-                    transfer_items([item], destination)
-            except Exception as e:
-                event = IgnorableErrorEvent(self, "Transfer Failed", str(e))
-                self.post_message(event)
-                return
-
-            table = cast(ModelDataTable, self.query_one("#checkin_items_table"))
-            await table.add_item(CachedStockItemCheckInRow(item))
-
-        self.app.push_screen(dialog, checkin_dialog_callback)
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        table = cast(ModelDataTable, self.query_one("#checkin_items_table"))
-        if event.button.id == "checkin_clear_button":
-            self.post_message(StatusChanged(self, "Cleared History"))
-            await table.clear_data()
 
 class InventreeApp(App):
     CSS_PATH = "styles.tcss"
@@ -304,9 +81,11 @@ class InventreeApp(App):
 A new version of {package_name} is available: {latest_version}\n\
 You can upgrade to it by running: `pip install --upgrade {package_name}`"""
                 self.post_message(IgnorableErrorEvent(self, "New Version Available", s))
-                self.post_message(StatusChanged(self,f"New Version Available ({latest_version}). Please Upgrade."))
+                self.post_message(StatusChanged(self,f"""\
+New Version Available ({latest_version}). Please Upgrade."""))
             else:
-                self.post_message(StatusChanged(self,f"InvenTree TUI up to date ({current_version})"))
+                self.post_message(StatusChanged(self,f"""\
+InvenTree TUI up to date ({current_version})"""))
         else:
             self.post_message(StatusChanged(self, "Failed to check for update"))
 

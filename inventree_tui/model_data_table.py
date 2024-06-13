@@ -27,9 +27,11 @@ class ModelDataTable(DataTable):
             model_class: Type[T],
             *args,
             sort_column_key: str | None = None,
+            editable: bool = False,
             **kwargs):
         self.data : Dict[str, T] = {} #reactive(set([]), recompose=True)
         self.sort_column_key = None
+        self.editable = editable
 
         super().__init__(*args, **kwargs)
         self.model_class = model_class
@@ -40,7 +42,7 @@ class ModelDataTable(DataTable):
 Not a valid sort column, options are {model_class.get_field_names(by_alias=True)}""")
 
     def on_mount(self) -> None:
-        columns = self.model_class.get_field_names(by_alias=True)
+        columns = self.model_class.column_fields()
         for col in columns:
             dn = self.model_class.field_display_name(col)
             if dn is not None:
@@ -106,7 +108,7 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
             self.sort(self.sort_column_key, reverse=True)
 
     async def on_data_table_row_selected(self, message: DataTable.RowSelected):
-        if message.row_key.value is None:
+        if message.row_key.value is None or not self.editable:
             return
         obj = self.data[message.row_key.value]
         dialog = RowEditScreen(self, obj)

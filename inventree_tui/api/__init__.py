@@ -97,16 +97,16 @@ def transfer_items(items: List[CachedStockItem], location: StockLocation):
     StockItem.adjustStockItems(api, method='transfer', items=_items, location=location.pk)
 
 class CachedStockItemRow(CachedStockItemRowModel):
-    cached_stock_item: CachedStockItem
+    cached_stock_item: CachedStockItem = Field(frozen=True)
 
     def __init__(self, cached_stock_item: CachedStockItem):
         super().__init__(
+            cached_stock_item=cached_stock_item,
             stock_number=cached_stock_item.pk,
             part_name=cached_stock_item.part.name,
             quantity=cached_stock_item.quantity,
             current_location=cached_stock_item.stock_location_name
         )
-        self.cached_stock_item = cached_stock_item
 
     def __hash__(self):
         return hash(self.cached_stock_item)
@@ -152,10 +152,11 @@ class CachedStockItemCheckInRowModel(RowBaseModel):
         return f"Stock #{self.stock_number}"
 
 class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
-    cached_stock_item: CachedStockItem
+    cached_stock_item: CachedStockItem = Field(frozen=True)
 
     def __init__(self, cached_stock_item: CachedStockItem):
         super().__init__(
+            cached_stock_item=cached_stock_item,
             stock_number=cached_stock_item.pk,
             part_name=cached_stock_item.part.name,
             quantity=cached_stock_item.quantity,
@@ -163,7 +164,6 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
             new_location=cached_stock_item.default_location.name,
             timestamp=datetime.now(),
         )
-        self.cached_stock_item = cached_stock_item
 
     def __hash__(self):
         #allows for duplicates
@@ -182,14 +182,6 @@ class CachedStockItemCheckInRow(CachedStockItemCheckInRowModel):
         }
 
     def update(self, other, validate=False, allow_greater=False):
-        if validate:
-            oq = self._cached_stock_item.original_quantity
-            if not allow_greater and other.quantity > oq:
-                raise ValueError(f"Quantity is greater than the original stock quantity ({oq})")
-
-        self.quantity = other.quantity
-        self._cached_stock_item.quantity = other.quantity
-
         return True
 
     @property
