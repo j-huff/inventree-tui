@@ -29,10 +29,13 @@ class ModelDataTable(DataTable):
             *args,
             sort_column_key: str | None = None,
             editable: bool = False,
+            allow_delete: bool = True,
             **kwargs):
+
         self.data : Dict[str, T] = {} #reactive(set([]), recompose=True)
         self.sort_column_key = None
         self.editable = editable
+        self.allow_delete = allow_delete
 
         super().__init__(*args, **kwargs)
         self.model_class = model_class
@@ -116,7 +119,7 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
         await self.app.push_screen(dialog)
 
     async def on_key(self, event: Key) -> None:
-        if event.name == "delete" and len(self.data) > 0:
+        if self.allow_delete and event.name == "delete" and len(self.data) > 0:
             row = self.ordered_rows[self.cursor_row]
             row_key = row.key
             key = cast(str, row_key.value)

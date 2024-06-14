@@ -190,3 +190,22 @@ Footer Static {
   width: 10;
   background: red;
 }
+StockOpsTab {
+  RadioSet {
+    layout: horizontal;
+  }
+}
+
+#adjust-dialog {
+  background: $background;
+  max-width: 60%;
+  height: auto;
+  padding-left: 1;
+  padding-right: 1;
+  border: round $accent-lighten-3;
+}
+
+ModalScreen {
+  align: center middle;
+  background: rgba(0,0,0,0.0);
+}

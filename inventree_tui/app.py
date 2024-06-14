@@ -19,7 +19,12 @@ from textual.widgets import (
 
 from .error_screen import ErrorDialogScreen, IgnorableErrorEvent
 from .status import StatusChanged
-from .tabs import TransferItemsTab, CheckInItemsTab, PartSearchTab
+from .tabs import (
+    TransferItemsTab,
+    CheckInItemsTab,
+    PartSearchTab,
+    StockOpsTab
+)
 
 logging.basicConfig(
     level="NOTSET",
@@ -45,6 +50,8 @@ class InventreeApp(App):
                 yield TransferItemsTab()
             with TabPane("Check-In Items", id="checkin-items-tab"):
                 yield CheckInItemsTab()
+            with TabPane("Stock Ops", id="stock-ops-tab"):
+                yield StockOpsTab()
             with TabPane("Part Search", id="part-search-tab"):
                 yield PartSearchTab()
         with Vertical(id="footer"):

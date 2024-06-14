@@ -1,8 +1,11 @@
 import os
 import sys
 
+from typing import Generic, TypeVar, Type
 from dotenv import load_dotenv
 from inventree.api import InvenTreeAPI
+from inventree.base import InventreeObject
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 class ApiException(Exception):
     def __init__(self, message, status_code=None):
@@ -35,3 +38,29 @@ if not host or not token:
     sys.exit(1)
 
 api = InvenTreeAPI(host=host, token=token)
+
+T = TypeVar('T', bound=InventreeObject)
+class CachedInventreeObject(BaseModel, Generic[T]):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    obj : T = Field(frozen=True)
+    _base_class : Type[T] = PrivateAttr(default=T)
+
+    @classmethod
+    def base_class(cls):
+        return cls.model_fields["obj"].annotation
+
+    @classmethod
+    def list(cls, api, **kwargs):
+        l = cls.base_class().list(api, **kwargs)
+        return [cls(obj=i) for i in l]
+
+# Converts whole number floats to ints
+# If a dict is given, it will convert all items in the dict
+def f2i(obj):
+    if isinstance(obj, dict):
+        return {key : f2i(val) for key,val in obj.items()}
+    elif isinstance(obj, float) and obj.is_integer():
+        return int(obj)
+    else:
+        return obj
