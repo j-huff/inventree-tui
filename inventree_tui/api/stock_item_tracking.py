@@ -25,22 +25,27 @@ class CachedStockItemTracking(CachedInventreeObject[StockItemTracking]):
         if obj.deltas is not None:
             obj.deltas = f2i(obj.deltas)
 
+        # Location Changed
         if obj.tracking_type == 20:
             s = f"moved -> {obj.deltas['location']}"
+        # Remove
         elif obj.tracking_type == 12:
             removed = obj.deltas['removed']
             quantity = obj.deltas['quantity']
             s = f"{quantity+removed} - {removed} = {quantity}"
+        # Add
         elif obj.tracking_type == 11:
             added = obj.deltas['added']
             quantity = obj.deltas['quantity']
             s = f"{quantity-added} + {added} = {quantity}"
+        # Count
         elif obj.tracking_type == 10:
             quantity = obj.deltas['quantity']
-            s = f"{quantity}"
+            s = f"= {quantity}"
+        # Status updated
         elif obj.tracking_type == 25:
             status = obj.deltas['status']
-            s = f"{status}"
+            s = f"status -> {status}"
         else:
             s = f"""\
                 [{obj.tracking_type}] : {dict(obj)}\

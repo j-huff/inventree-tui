@@ -6,15 +6,16 @@ from datetime import datetime, timedelta
 from inventree.stock import StockItem, StockItemTracking
 from inventree.base import InventreeObject
 
-from textual import work
+from textual import work, on
+from textual.validation import Function, Number, ValidationResult, Validator
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import (
-    ListView,
-    ListItem,
+    Pretty,
+    Input,
     Button,
     Static,
     RadioSet,
@@ -34,49 +35,89 @@ from inventree_tui.status import StatusChanged
 from inventree_tui.model_data_table import ModelDataTable
 from inventree_tui.components import ButtonBar
 from inventree_tui.api import api, RowBaseModel
+from inventree_tui.validation import GreaterThan
 
 class StockAdjustmentScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
-    error_message = reactive("", repaint=True)
 
     def __init__(self, item, method):
         self.item = item
         self.method = method
         super().__init__()
-        self.errmsg = Static("", id="adjust-errormsg", classes="error-msg")
-        self.errmsg.styles.display = "none"
         self.dialog_title = f"Adjust Stock: {self.item.title_name()} ({method})"
 
     def compose(self) -> ComposeResult:
         with Container(id="adjust-dialog") as container:
             container.border_title = self.dialog_title
             yield Static(f"Adjust Method: {self.method}")
-            #yield Static(f"Default Location: {self.item.default_location.name}")
+            #yield Static(f"Default Location: {self.item.default_location.name}"
+            if self.method == "remove":
+                yield Input(
+                    type="number",
+                    placeholder="Enter a number...",
+                    validators=[
+                        Number(maximum=self.item.original_quantity),
+                        GreaterThan(0),
+                    ],
+                )
+            elif self.method == "add":
+                yield Input(
+                    type="number",
+                    placeholder="Enter a number...",
+                    validators=[
+                        GreaterThan(0),
+                    ],
+                )
+            elif self.method == "count":
+                yield Input(
+                    type="number",
+                    placeholder="Enter a number...",
+                    validators=[
+                        Number(minimum=0),
+                    ],
+                )
+            else:
+                raise NotImplemented(f"method not implemented: {self.method}")
+            static = Static("", id="adjust_number_error_msg")
+            static.styles.display = "none"
+            yield static
             yield Static("Confirm adjustment?", classes="dialog-question")
-            yield self.errmsg
             with ButtonBar (classes="button-bar"):
-                yield Button("Confirm", variant="success", id="adjust-confirm")
+                button = Button("Confirm", variant="success", id="adjust_confirm_button")
+                button.disabled = True
+                yield button
                 yield Static(" ")
                 yield Button("Cancel", variant="error", id="adjust-cancel")
+
+    @on(Input.Changed)
+    def show_invalid_reasons(self, event: Input.Changed) -> None:
+        # Updating the UI to show the reasons why validation failed
+        err = self.query_one("#adjust_number_error_msg")
+        button = self.query_one("#adjust_confirm_button")
+
+        if not event.validation_result.is_valid:
+            err.update(". ".join(event.validation_result.failure_descriptions))
+            err.styles.display = "block"
+            button.disabled = True
+        else:
+            err.update("")
+            err.styles.display = "none"
+            button.disabled = False
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "adjust-cancel":
             self.dismiss(None)
             return
-        if event.button.id == "adjust-confirm":
-            self.dismiss((self.item, self.method, None)) 
+        if event.button.id == "adjust_confirm_button":
+            q = float(self.query_one(Input).value)
+            item = {"pk": self.item.pk, "quantity": q}
+            self.dismiss((item, self.method))
             return
-
-    def watch_error_message(self, msg: str) -> None:
-        self.errmsg.update(msg)
-        if len(msg) == 0:
-            self.errmsg.styles.display = "none"
-        else:
-            self.errmsg.styles.display = "block"
 
 class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
     timestamp_str: str = Field(frozen=True)
     stock_pk: int = Field(frozen=True)
+    pk: int = Field(frozen=True)
     label: str = Field(frozen=True)
     op_string: str = Field(frozen=True)
     info: str = Field(frozen=True)
@@ -95,6 +136,7 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
             info = item.to_string(),
             label = obj.label,
             stock_pk = obj.item,
+            pk = obj.pk,
             op_string = item.op_string(),
             timestamp = item.datetime()
         )
@@ -102,13 +144,14 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
     @classmethod
     def field_display_dict(cls):
         return {
+            "pk": "#",
             "timestamp_str": "Timestamp",
             "timestamp": None,
             "stock_pk": "Stock#",
             "label": "Label",
             "op_string": "Info",
             "info": None,
-            "obj": None
+            "obj": None,
         }
 
     def update(self, other, validate=False):
@@ -137,7 +180,7 @@ class StockOpsTab(Container):
             yield RadioButton("Count", name="count")
         yield ModelDataTable(
             model_class=CachedStockItemTrackingRowModel,
-            sort_column_key="timestamp_str",
+            sort_column_key="pk",
             id="stock_ops_table",
             zebra_stripes=True,
             allow_delete=False,
@@ -213,18 +256,18 @@ class StockOpsTab(Container):
             if args is None:
                 return
 
-            (item, method, kwargs) = args
+            (item, method) = args
 
             try:
-                pass
-                #StockItem.adjustStockItems(api, method, [item], **kwargs)
+                StockItem.adjustStockItems(api, method, [item])
             except Exception as e:
                 event = IgnorableErrorEvent(self, "Transfer Failed", str(e))
                 self.post_message(event)
                 return
 
+            self.fetch_recent()
             self.post_message(StatusChanged(self,f"""\
-Stock item adjusted {method}, {kwargs}"""))
+Stock item adjusted ({method})"""))
 
             #table = cast(ModelDataTable, self.query_one("#checkin_items_table"))
             #await table.add_item(CachedStockItemCheckInRow(item))
