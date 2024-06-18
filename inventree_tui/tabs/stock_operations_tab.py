@@ -107,6 +107,12 @@ class StockAdjustmentScreen(ModalScreen):
             err.styles.display = "none"
             button.disabled = False
 
+    @on(Input.Submitted)
+    def move_to_button(self, event: Input.Submitted) -> None:
+        if event.validation_result.is_valid:
+            btn = self.query_one("#adjust_confirm_button")
+            btn.focus()
+
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "adjust-cancel":
             self.dismiss(None)
