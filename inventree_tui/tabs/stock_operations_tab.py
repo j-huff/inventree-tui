@@ -2,6 +2,7 @@ from typing import cast, Generic, TypeVar, get_args, Type
 from pydantic import BaseModel, ConfigDict, PrivateAttr, Field
 import logging
 from datetime import datetime, timedelta
+from threading import Semaphore
 
 from inventree.stock import StockItem, StockItemTracking
 from inventree.base import InventreeObject
@@ -184,6 +185,8 @@ class StockOpsTab(Container):
         super().__init__()
         self.creation_time = datetime.now()
         self.default_oldest_delta = timedelta(hours=8)
+        # Limits the number of concurrent works making API calls
+        self.semaphore = Semaphore(5)
 
     def compose(self) -> ComposeResult:
         yield InventreeScanner(
@@ -208,16 +211,26 @@ class StockOpsTab(Container):
     def on_mount(self):
         self.fetch_recent()
 
+    #TODO: implement lazy loading of part names. 
+    @work(exclusive=False, thread=True)
+    async def load_row(self, row_key, row):
+        self.semaphore.acquire()
+        max_retries = 3
+        for i in range(max_retries):
+            try:
+                row.load_name();
+                break
+            except Exception as e:
+                if i+1 == max_retries:
+                    raise e
+        self.semaphore.release()
+        table = cast(ModelDataTable, self.query_one("#stock_ops_table"))
+        self.app.call_from_thread(table.update)
+        #await table.update()
+
     # Will fetch recent items until it starts overlapping with the data
     # already in the table. If no data is in the table, it will fetch all of the data until
     # it reaches the 'oldest' limit
-    @work(exclusive=False, thread=True)
-    async def load_row(self, row_key, row):
-        row.load_name();
-        table = cast(ModelDataTable, self.query_one("#stock_ops_table"))
-        await table.update()
-
-
     @work(exclusive=False, thread=True)
     async def fetch_recent(self, increment = 10, oldest_delta : timedelta | None = None):
 
