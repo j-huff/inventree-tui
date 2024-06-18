@@ -1,10 +1,21 @@
 from datetime import datetime
 from textwrap import dedent
-from inventree.stock import StockItemTracking
+from inventree.stock import StockItemTracking, StockItem
+from inventree.part import Part
 
-from inventree_tui.api.base import f2i, CachedInventreeObject
+from inventree_tui.api.base import f2i, CachedInventreeObject, api
+from inventree_tui.api.stock_item import CachedStockItem
+from pydantic import PrivateAttr
 
 class CachedStockItemTracking(CachedInventreeObject[StockItemTracking]):
+    
+    _stock_item : CachedStockItem = PrivateAttr(default=None)
+
+    @property
+    def stock_item(self):
+        if self._stock_item is None:
+            self._stock_item = CachedStockItem(stock_item=StockItem(api,self.obj.item))
+        return self._stock_item
 
     @classmethod
     def timestamp_format(cls):
@@ -51,6 +62,20 @@ class CachedStockItemTracking(CachedInventreeObject[StockItemTracking]):
                 [{obj.tracking_type}] : {dict(obj)}\
             """
         return dedent(s)
+
+    def short_label(self):
+        d = {
+                20: "Moved",
+                12: "Removed",
+                11: "Add",
+                10: "Count",
+                25: "Updated",
+        }
+        if self.obj.tracking_type in d:
+            return d[self.obj.tracking_type]
+
+        # Default to label
+        return self.obj.label
 
     def to_string(self, date=False):
         obj = self.obj

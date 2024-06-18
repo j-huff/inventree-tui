@@ -59,6 +59,7 @@ class StockAdjustmentScreen(ModalScreen):
                         Number(maximum=self.item.original_quantity),
                         GreaterThan(0),
                     ],
+                    value="1",
                 )
             elif self.method == "add":
                 yield Input(
@@ -67,6 +68,7 @@ class StockAdjustmentScreen(ModalScreen):
                     validators=[
                         GreaterThan(0),
                     ],
+                    value="1",
                 )
             elif self.method == "count":
                 yield Input(
@@ -75,6 +77,7 @@ class StockAdjustmentScreen(ModalScreen):
                     validators=[
                         Number(minimum=0),
                     ],
+                    value=str(self.item.original_quantity),
                 )
             else:
                 raise NotImplemented(f"method not implemented: {self.method}")
@@ -115,10 +118,13 @@ class StockAdjustmentScreen(ModalScreen):
             return
 
 class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
+
     timestamp_str: str = Field(frozen=True)
     stock_pk: int = Field(frozen=True)
     pk: int = Field(frozen=True)
     label: str = Field(frozen=True)
+    short_label: str = Field(frozen=True)
+    part_name: str = Field(frozen=False)
     op_string: str = Field(frozen=True)
     info: str = Field(frozen=True)
 
@@ -135,11 +141,16 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
             timestamp_str = item.datetime_string(),
             info = item.to_string(),
             label = obj.label,
+            short_label = item.short_label(),
             stock_pk = obj.item,
+            part_name = "loading...", #item.stock_item.part.name,
             pk = obj.pk,
             op_string = item.op_string(),
             timestamp = item.datetime()
         )
+
+    def load_name(self):
+        self.part_name = self.stock_item.part.name
 
     @classmethod
     def field_display_dict(cls):
@@ -147,8 +158,10 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
             "pk": "#",
             "timestamp_str": "Timestamp",
             "timestamp": None,
-            "stock_pk": "Stock#",
-            "label": "Label",
+            "stock_pk": "Stk#",
+            "part_name": "Part",
+            "label": None,
+            "short_label": "Label",
             "op_string": "Info",
             "info": None,
             "obj": None,
@@ -192,6 +205,12 @@ class StockOpsTab(Container):
     # Will fetch recent items until it starts overlapping with the data
     # already in the table. If no data is in the table, it will fetch all of the data until
     # it reaches the 'oldest' limit
+    @work(exclusive=False, thread=True)
+    async def load_row(self, row_key, row):
+        row.load_name();
+        table = cast(ModelDataTable, self.query_one("#stock_ops_table"))
+        await table.update()
+
 
     @work(exclusive=False, thread=True)
     async def fetch_recent(self, increment = 10, oldest_delta : timedelta | None = None):
@@ -214,7 +233,8 @@ class StockOpsTab(Container):
             hit_oldest = False
             for item in new_data:
                 row = CachedStockItemTrackingRowModel(item)
-                await table.add_item(row)
+                row_key = await table.add_item(row)
+                self.load_row(row_key, row)
                 if row.obj.pk  <= most_recent:
                     hit_most_recent = True
                 if row.timestamp <= oldest:
