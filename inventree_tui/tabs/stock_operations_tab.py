@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import cast, Generic, TypeVar, get_args, Type
 from pydantic import BaseModel, ConfigDict, PrivateAttr, Field
 import logging
@@ -14,6 +15,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from textual.message import Message
 from textual.widgets import (
     Pretty,
     Input,
@@ -180,6 +182,86 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
     def title_name(self):
         return f"Tracking Item #{self.obj.pk}"
 
+class MyRadioSet(RadioSet):
+
+    DEFAULT_CSS = """
+    MyRadioSet {
+        border: tall transparent;
+        background: $boost;
+        padding: 0 1 0 0;
+        height: auto;
+        width: auto;
+    }
+
+    MyRadioSet:focus {
+        border: tall $accent;
+    }
+
+    /* The following rules/styles mimic similar ToggleButton:focus rules in
+     * ToggleButton. If those styles ever get updated, these should be too.
+     */
+
+    MyRadioSet > * {
+        background: transparent;
+        border: none;
+        padding: 0 1;
+    }
+
+    MyRadioSet:focus > RadioButton.-selected > .toggle--label {
+        text-style: underline;
+    }
+
+    MyRadioSet:focus ToggleButton.-selected > .toggle--button {
+        background: $foreground 25%;
+    }
+
+    MyRadioSet:focus > RadioButton.-on.-selected > .toggle--button {
+        background: $foreground 25%;
+    }
+    """
+
+    def _on_radio_button_changed(self, event: RadioButton.Changed) -> None:
+        """Respond to the value of a button in the set being changed.
+
+        Args:
+            event: The event.
+        """
+        # We're going to consume the underlying radio button events, making
+        # it appear as if they don't emit their own, as far as the caller is
+        # concerned. As such, stop the event bubbling and also prohibit the
+        # same event being sent out if/when we make a value change in here.
+        event.stop()
+        with self.prevent(RadioButton.Changed):
+            # If the message pertains to a button being clicked to on...
+            if event.radio_button.value:
+                # If there's a button pressed right now and it's not really a
+                # case of the user mashing on the same button...
+                if (
+                    self._pressed_button is not None
+                    and self._pressed_button != event.radio_button
+                ):
+                    self._pressed_button.value = False
+                # Make the pressed button this new button.
+                self._pressed_button = event.radio_button
+                # Emit a message to say our state has changed.
+                self.post_message(self.Changed(self, event.radio_button))
+            else:
+                # We're being clicked off, we don't want that.
+                event.radio_button.value = True
+                self.post_message(self.Reselected(self))
+
+    class Changed(RadioSet.Changed):
+        pass
+
+    class Reselected(Message):
+        def __init__(self, radio_set: MyRadioSet) -> None:
+            super().__init__()
+            self.radio_set = radio_set
+
+        @property
+        def control(self) -> MyRadioSet:
+            return self.radio_set
+
 class StockOpsTab(Container):
     def __init__(self):
         super().__init__()
@@ -196,7 +278,7 @@ class StockOpsTab(Container):
             input_id="stock_ops_item_input",
             autocomplete=False
         )
-        with RadioSet(id="stock_ops_radio_set"):
+        with MyRadioSet(id="stock_ops_radio_set"):
             yield RadioButton("Remove", value=True, name="remove")
             yield RadioButton("Add", name="add")
             yield RadioButton("Count", name="count")
@@ -279,6 +361,14 @@ class StockOpsTab(Container):
         table = cast(RadioSet, self.query_one("#stock_ops_radio_set"))
         radio_button = cast(RadioButton, table.pressed_button)
         return radio_button.name
+
+    def on_my_radio_set_changed(self, event: MyRadioSet.Changed) -> None:
+        if event.control.id == "stock_ops_radio_set":
+            self.query_one("#stock_ops_item_input").focus()
+
+    def on_my_radio_set_reselected(self, event: MyRadioSet.Reselected) -> None:
+        if event.control.id == "stock_ops_radio_set":
+            self.query_one("#stock_ops_item_input").focus()
 
     def on_inventree_scanner_item_scanned(self, message: InventreeScanner.ItemScanned) -> None:
         #if message.sender.id == "stock_ops_items_scanner":
