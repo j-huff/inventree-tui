@@ -1,3 +1,10 @@
 app_name: "My Inventree TUI"
 sound_enabled: True
 tts_enabled: True
+stock_ops_tab:
+  history_chunk_size: 5
+  history_delta_minutes: 0
+  history_delta_hours: 8
+  history_delta_days: 1
+part_search_tab:
+  auto_expand: 1
