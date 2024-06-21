@@ -1,0 +1,3 @@
+app_name: "My Inventree TUI"
+sound_enabled: True
+tts_enabled: True

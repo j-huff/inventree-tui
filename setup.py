@@ -13,6 +13,7 @@ setup(
         "textual",
         "inventree>=0.14.0",
         "pydantic",
+        "pydantic-settings",
         "python-dotenv",
         "textual-autocomplete==2.1.0b0",
         "fuzzywuzzy",
@@ -22,6 +23,7 @@ setup(
         "wave",
         "pygame",
         "gTTS",
+        "PyYAML"
     ],
     entry_points={
         "console_scripts": [

@@ -26,17 +26,16 @@ from .tabs import (
     StockOpsTab
 )
 from .sound import Sound, play_sound
+from .settings import settings
 
 logging.basicConfig(
     level="NOTSET",
     handlers=[TextualHandler()],
 )
 
-
-
 class InventreeApp(App):
     CSS_PATH = "styles.tcss"
-    TITLE = "InvenTree TUI"
+    TITLE = settings.app_name
 
     status_message = reactive("")
 
@@ -122,6 +121,8 @@ InvenTree TUI up to date ({current_version})"""))
         fn()
 
     def on_sound(self, event: Sound):
+        if not settings.sound_enabled:
+            return
         if event.name is not None:
             self.play_sound(event.name)
         if event.fn is not None:

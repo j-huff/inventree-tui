@@ -2,10 +2,10 @@ import os
 import sys
 
 from typing import Generic, TypeVar, Type
-from dotenv import load_dotenv
 from inventree.api import InvenTreeAPI
 from inventree.base import InventreeObject
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
+from inventree_tui.settings import settings
 
 class ApiException(Exception):
     def __init__(self, message, status_code=None):
@@ -16,9 +16,9 @@ class ApiException(Exception):
     def __str__(self):
         return f'{self.message} (Status Code: {self.status_code})'
 
-load_dotenv()
-host = os.environ.get("INVENTREE_API_HOST")
-token = os.environ.get("INVENTREE_API_TOKEN")
+host = settings.inventree_api_host
+token = settings.inventree_api_token
+
 
 def error_msg(name, envname, sample):
     print(f"{name} not set - set `{envname}` to fix this\nExample: `export {envname}={sample}`\n")
