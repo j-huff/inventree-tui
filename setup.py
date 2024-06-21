@@ -21,6 +21,7 @@ setup(
         "numpy",
         "wave",
         "pygame",
+        "gTTS",
     ],
     entry_points={
         "console_scripts": [

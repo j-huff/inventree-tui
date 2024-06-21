@@ -9,12 +9,76 @@ import hashlib
 
 from textual.events import Event
 import logging
-import io
+from io import BytesIO
+import functools
+import pickle
+from pathlib import Path
 
 # Yes it seems a bit silly to use pygame just for sound,
 # but it's the most well supported cross-platform package
 # for playing sound, without being *too* large
 from pygame import mixer, sndarray
+from gtts import gTTS
+
+# Define the cache directory
+# kwd_mark = object()     # sentinel for separating args from kwargs
+
+def persistent_sound_cache(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Create the cache directory if it doesn't exist
+        cache_dir = Path(tempfile.gettempdir()) / "inventree-tui" / "sounds"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create a unique key for the function call
+        kwd_mark = object()
+        key = args + tuple(sorted(kwargs.items()))
+
+        # Path for the pickle file that tracks the cache
+        cache_index_path = cache_dir / "sound_cache_index.pkl"
+
+        # Load the cache index
+        if cache_index_path.exists():
+            with open(cache_index_path, "rb") as f:
+                cache_index = pickle.load(f)
+        else:
+            cache_index = {}
+
+        # Check if the result is in the cache
+        if str(key) in cache_index:
+            sound_path = cache_index[str(key)]
+            return mixer.Sound(sound_path)
+
+        # If not in cache, call the original function
+        sound = func(*args, **kwargs)
+
+        # Save the sound to a temporary WAV file
+        temp_path = cache_dir / f"sound_{os.urandom(8).hex()}.wav"
+
+        # Get sound array and properties
+        array_sample = sndarray.array(sound)
+        n_channels = 1 if len(array_sample.shape) == 1 else array_sample.shape[1]
+        sample_width = array_sample.dtype.itemsize
+        frame_rate = mixer.get_init()[0]
+
+        # Open a new wave file
+        with wave.open(str(temp_path), "wb") as wav_file:
+            # Set parameters
+            wav_file.setnchannels(n_channels)
+            wav_file.setsampwidth(sample_width)
+            wav_file.setframerate(frame_rate)
+
+            # Write data
+            wav_file.writeframes(array_sample.tobytes())
+
+        # Update the cache index
+        cache_index[str(key)] = str(temp_path)
+        with open(cache_index_path, "wb") as f:
+            pickle.dump(cache_index, f)
+
+        return sound
+
+    return wrapper
 
 class ADSREnvelope:
     def __init__(self, attack_ms, decay_ms, sustain_level, release_ms):
@@ -204,16 +268,34 @@ def generate_failure():
 
     return melody.generate_sound()
 
+@persistent_sound_cache
+def tts(text, lang='en'):
+    # Use gTTS to generate speech
+    tts = gTTS(text=text, lang='en')
+    mp3_fp = BytesIO()
+    tts.write_to_fp(mp3_fp)
+    mp3_fp.seek(0)
+
+    # Create an in-memory file-like object
+    in_memory_file = BytesIO(mp3_fp.getvalue())
+
+    # Load the in-memory file as a Pygame sound object
+    sound = mixer.Sound(in_memory_file)
+    return sound
+
 # Generate the sounds
 mixer.init(frequency=44100, size=-16, channels=1)
-success_sound = generate_success()
-failure_sound = generate_failure()
+
+success = generate_success()
+failure = generate_failure()
 
 def play_sound(sound_name: str):
     if sound_name == "success":
-        success_sound.play()
+        success.play()
+        tts("success").play()
     elif sound_name == "failure":
-        failure_sound.play()
+        failure.play()
+        tts("You fucked up").play()
 
 class Sound(Event):
     def __init__(self, sender, name: str):
