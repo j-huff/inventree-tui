@@ -109,7 +109,7 @@ class InventreeScanner(Vertical):
         input_id: str | None = None,
         autocomplete: bool = False,
         search: bool = False,
-        sound: bool = True
+        sound: bool = False
     ) -> None:
         self.input_id = input_id
         self.whitelist = whitelist if whitelist is not None else []
@@ -182,9 +182,9 @@ class InventreeScanner(Vertical):
             return
 
         self.post_message(self.ItemScanned(self, obj))
+
         if self.sound:
-            self.post_message(Sound(self, "success"))
-            print('\a')
+            self.post_message(Sound(self, name="success"))
 
     @work(exclusive=False, thread=True)
     async def search_single_item(self, text: str) -> None:

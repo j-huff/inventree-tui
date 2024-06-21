@@ -20,6 +20,7 @@ from inventree_tui.components import LabeledText, ButtonBar
 from inventree_tui.error_screen import IgnorableErrorEvent
 from inventree_tui.status import StatusChanged
 from inventree_tui.model_data_table import ModelDataTable
+from inventree_tui.sound import Sound, tts, success, failure
 
 class TransferItemsTab(Container):
     destination : StockLocation | None = reactive(None)
@@ -38,7 +39,8 @@ class TransferItemsTab(Container):
             whitelist=[StockItem],
             placeholder="Scan Items",
             input_id="transfer_item_input",
-            autocomplete=False
+            autocomplete=False,
+            sound=False
         )
         with Horizontal():
             yield ModelDataTable(
@@ -60,6 +62,10 @@ class TransferItemsTab(Container):
             dest.text = self.destination.name
             self.get_destination_full_path()
 
+            def sound_fn():
+                tts(f"Destination set to {self.destination.name}").play()
+            self.post_message(Sound(self, fn=sound_fn))
+
     @work(exclusive=True, thread=True)
     def get_destination_full_path(self):
         dest = self.query_one("#destination")
@@ -79,7 +85,17 @@ class TransferItemsTab(Container):
         elif message.sender.id == "transfer_items_scanner":
             item = CachedStockItem(stock_item=message.obj)
             table = cast(ModelDataTable, self.query_one("#transfer-items-table"))
-            await table.add_item(CachedStockItemRow(item))
+            res = await table.add_item(CachedStockItemRow(item))
+            if res:
+                def sound_fn():
+                    tts(f"Added {item.part.name}").play()
+                    success.play()
+                self.post_message(Sound(self, fn=sound_fn))
+            else:
+                def sound_fn():
+                    tts(f"Item has already been added").play()
+                    failure.play()
+                self.post_message(Sound(self, fn=sound_fn))
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "transfer_done_button":

@@ -63,9 +63,10 @@ Not a valid sort column, options are {model_class.get_field_names(by_alias=True)
         row_key = self.obj_row_key(item)
         key = cast(str, row_key.value)
         if key in self.data:
-            return
+            return False
         self.data[key] = item
         await self.update()
+        return True
 
     async def clear_data(self):
         self.data = {}

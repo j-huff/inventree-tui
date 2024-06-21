@@ -39,6 +39,7 @@ from inventree_tui.model_data_table import ModelDataTable
 from inventree_tui.components import ButtonBar
 from inventree_tui.api import api, RowBaseModel
 from inventree_tui.validation import GreaterThan
+from inventree_tui.sound import Sound, tts
 
 class StockAdjustmentScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
@@ -48,6 +49,10 @@ class StockAdjustmentScreen(ModalScreen):
         self.method = method
         super().__init__()
         self.dialog_title = f"Adjust Stock: {self.item.title_name()} ({method})"
+
+        def sound_fn():
+            tts(f"{item.part.name}").play()
+        self.post_message(Sound(self, fn=sound_fn))
 
     def compose(self) -> ComposeResult:
         with Container(id="adjust-dialog") as container:
@@ -277,6 +282,7 @@ class StockOpsTab(Container):
             placeholder="Scan Items",
             input_id="stock_ops_item_input",
             autocomplete=False,
+            sound=True,
         )
         with MyRadioSet(id="stock_ops_radio_set"):
             yield RadioButton("Remove", value=True, name="remove")

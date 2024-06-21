@@ -113,9 +113,16 @@ InvenTree TUI up to date ({current_version})"""))
         self.call_after_refresh(self.initialization)
 
 
-    @work(exclusive=True, thread=True)
+    @work(exclusive=False, thread=True)
     def play_sound(self, sound_name: str):
         play_sound(sound_name)
 
+    @work(exclusive=False, thread=True)
+    def play_sound_fn(self, fn):
+        fn()
+
     def on_sound(self, event: Sound):
-        self.play_sound(event.name)
+        if event.name is not None:
+            self.play_sound(event.name)
+        if event.fn is not None:
+            self.play_sound_fn(event.fn)

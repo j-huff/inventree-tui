@@ -292,13 +292,12 @@ failure = generate_failure()
 def play_sound(sound_name: str):
     if sound_name == "success":
         success.play()
-        tts("success").play()
     elif sound_name == "failure":
         failure.play()
-        tts("You fucked up").play()
 
 class Sound(Event):
-    def __init__(self, sender, name: str):
+    def __init__(self, sender, name: str = None, fn = None):
         super().__init__()
         self.sender = sender
         self.name = name
+        self.fn = fn
