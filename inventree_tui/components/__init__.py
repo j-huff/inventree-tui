@@ -7,6 +7,7 @@ from textual.widgets import (
 
 from textual.containers import Horizontal
 from textual.binding import Binding
+from .checkbox_set import CheckboxSet
 
 class ButtonBar(Horizontal):
     BINDINGS = [

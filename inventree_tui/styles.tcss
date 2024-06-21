@@ -190,8 +190,15 @@ Footer Static {
   width: 10;
   background: red;
 }
+
 StockOpsTab {
   RadioSet {
+    layout: horizontal;
+  }
+}
+
+TransferItemsTab {
+  CheckboxSet {
     layout: horizontal;
   }
 }

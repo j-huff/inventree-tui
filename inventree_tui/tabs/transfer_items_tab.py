@@ -8,6 +8,7 @@ from textual.containers import Container, Horizontal
 from textual.widgets import (
     Button,
     Static,
+    Checkbox,
 )
 
 from inventree_tui.api import (
@@ -16,7 +17,7 @@ from inventree_tui.api import (
     transfer_items,
     InventreeScanner,
 )
-from inventree_tui.components import LabeledText, ButtonBar
+from inventree_tui.components import LabeledText, ButtonBar, CheckboxSet
 from inventree_tui.error_screen import IgnorableErrorEvent
 from inventree_tui.status import StatusChanged
 from inventree_tui.model_data_table import ModelDataTable
@@ -42,6 +43,9 @@ class TransferItemsTab(Container):
             autocomplete=False,
             sound=False
         )
+        with CheckboxSet(id="transfer_options_container"):
+            yield Checkbox("Default Location", name="default_location")
+            #yield Checkbox("Other Opt", name="default_location")
         with Horizontal():
             yield ModelDataTable(
                 model_class=CachedStockItemRow,
