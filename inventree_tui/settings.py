@@ -6,6 +6,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()  # Load environment variables from .env file
 
+class PartSearchTabSettings(BaseSettings):
+    auto_expand: int = Field(5, ge=0)
+
+class StockOpsTabSettings(BaseSettings):
+    history_delta_minutes: int = Field(0, ge=0)
+    history_delta_hours: int = Field(8, ge=0)
+    history_delta_days: int = Field(0, ge=0)
+    history_chunk_size: int = Field(10, ge=0)
+
 class Settings(BaseSettings):
     # General settings
     app_name: str = Field("InvenTree TUI")
@@ -14,6 +23,10 @@ class Settings(BaseSettings):
 
     inventree_api_host: str | None = Field(None, env="API_HOST")
     inventree_api_token: str | None = Field(None, env="API_TOKEN")
+
+    # Nested settings
+    part_search_tab: PartSearchTabSettings = Field(default_factory=PartSearchTabSettings)
+    stock_ops_tab: StockOpsTabSettings = Field(default_factory=StockOpsTabSettings)
 
     model_config = SettingsConfigDict(
         env_prefix='INVENTREE_',

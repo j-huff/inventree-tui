@@ -12,6 +12,8 @@ from inventree_tui.api import CachedStockItem
 from inventree_tui.api.part_search import part_search, CachedPart
 from inventree_tui.error_screen import IgnorableErrorEvent
 from inventree_tui.status import StatusChanged
+from inventree_tui.settings import settings
+from inventree_tui.sound import Sound, tts
 
 class PartSearchTree(Widget):
     def __init__(self, *args, **kwargs):
@@ -76,7 +78,8 @@ class PartSearchTab(Container):
         tree.set_root_label("Searching...")
 
         parts = part_search(value)
-        tree.set_root_label(f"Results: Found {len(parts)} parts")
+
+        tree.set_root_label(f"Results: Found {len(parts)} part{'s' if len(parts) != 1 else ''}")
 
         if len(parts) == 0:
             msg = "The part search yielded no results."
@@ -85,9 +88,13 @@ class PartSearchTab(Container):
             self.post_message(StatusChanged(self, msg))
             return
 
-        self.post_message(StatusChanged(self, f"Search found {len(parts)} parts"))
-        #TODO: make this configurable
-        max_expanded = 5
+        message = f"Search found {len(parts)} part{'s' if len(parts) != 1 else ''}"
+        self.post_message(StatusChanged(self, message))
+        def sound_fn():
+            tts(message).play()
+
+        self.post_message(Sound(self, fn=sound_fn))
+        max_expanded = settings.part_search_tab.auto_expand
         for i, part in enumerate(parts):
             tree.add_part(part, expand = i < max_expanded)
 

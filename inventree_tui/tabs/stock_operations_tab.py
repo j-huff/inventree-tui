@@ -40,6 +40,7 @@ from inventree_tui.components import ButtonBar
 from inventree_tui.api import api, RowBaseModel
 from inventree_tui.validation import GreaterThan
 from inventree_tui.sound import Sound, tts
+from inventree_tui.settings import settings
 
 class StockAdjustmentScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
@@ -276,7 +277,11 @@ class StockOpsTab(Container):
     def __init__(self):
         super().__init__()
         self.creation_time = datetime.now()
-        self.default_oldest_delta = timedelta(hours=8)
+        self.default_oldest_delta = timedelta(
+            minutes=settings.stock_ops_tab.history_delta_minutes,
+            hours=settings.stock_ops_tab.history_delta_hours,
+            days=settings.stock_ops_tab.history_delta_days,
+        )
         # Limits the number of concurrent works making API calls
         self.semaphore = Semaphore(5)
 
@@ -325,7 +330,7 @@ class StockOpsTab(Container):
     # already in the table. If no data is in the table, it will fetch all of the data until
     # it reaches the 'oldest' limit
     @work(exclusive=False, thread=True)
-    async def fetch_recent(self, increment = 10, oldest_delta : timedelta | None = None):
+    async def fetch_recent(self, increment = settings.stock_ops_tab.history_chunk_size, oldest_delta : timedelta | None = None):
 
         if oldest_delta is None:
             oldest_delta = self.default_oldest_delta
