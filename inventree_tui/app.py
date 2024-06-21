@@ -25,8 +25,8 @@ from .tabs import (
     PartSearchTab,
     StockOpsTab
 )
-from .sound import Sound, play_sound
-from .settings import settings
+from inventree_tui.sound import Sound, play_sound
+from inventree_tui.settings import settings
 
 logging.basicConfig(
     level="NOTSET",
