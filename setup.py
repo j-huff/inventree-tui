@@ -20,6 +20,7 @@ setup(
         "httpx",
         "numpy",
         "wave",
+        "pygame",
     ],
     entry_points={
         "console_scripts": [

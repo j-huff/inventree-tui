@@ -11,6 +11,11 @@ from textual.events import Event
 import logging
 import io
 
+# Yes it seems a bit silly to use pygame just for sound,
+# but it's the most well supported cross-platform package
+# for playing sound, without being *too* large
+from pygame import mixer, sndarray
+
 class ADSREnvelope:
     def __init__(self, attack_ms, decay_ms, sustain_level, release_ms):
         self.attack_ms = attack_ms
@@ -98,6 +103,14 @@ class Melody:
     def add_note(self, note, start_time_ms):
         self.notes.append((note, start_time_ms))
 
+    def generate_sound(self):
+        # Generate the melody
+        samples = self.generate()
+        # Normalize to 16-bit range
+        samples = (samples * 32767).astype(np.int16)
+
+        return sndarray.make_sound(samples)
+
     def generate(self):
         if not self.notes:
             return np.array([])
@@ -122,59 +135,6 @@ class Melody:
 
         return melody
 
-# Generates a temporary WAV file from the melody.
-# If a temporary file with the same id_string and hash already exists
-# then the name of the existing file will be returned
-def melody_to_temp_wav(melody, id_string, sample_width=2):
-    # Generate the melody
-    samples = melody.generate()
-
-    # Normalize to 16-bit range
-    samples = (samples * 32767).astype(np.int16)
-
-    # Create the /tmp/inventree-tui directory if it doesn't exist
-    temp_dir = '/tmp/inventree-tui'
-    os.makedirs(temp_dir, exist_ok=True)
-
-    # Create a byte buffer and encode the WAV file
-    buffer = io.BytesIO()
-    with wave.open(buffer, 'wb') as wav_file:
-        wav_file.setnchannels(1)  # Mono
-        wav_file.setsampwidth(sample_width)  # 2 bytes per sample
-        wav_file.setframerate(melody.sample_rate)
-        wav_file.writeframes(samples.tobytes())
-
-    # Get the encoded WAV data
-    wav_data = buffer.getvalue()
-
-    # Generate a hash of the encoded WAV data
-    wav_hash = hashlib.md5(wav_data).hexdigest()
-
-    # Check for existing files with the same id_string
-    existing_files = [f for f in os.listdir(temp_dir) if f.startswith(id_string) and f.endswith('.wav')]
-    
-    for existing_file in existing_files:
-        full_path = os.path.join(temp_dir, existing_file)
-        with open(full_path, 'rb') as f:
-            existing_hash = hashlib.md5(f.read()).hexdigest()
-        if existing_hash == wav_hash:
-            return full_path
-
-    # Create a new temporary file
-    temp_file = tempfile.NamedTemporaryFile(prefix=f"{id_string}_", suffix=".wav", dir=temp_dir, delete=False)
-
-    try:
-        # Write the WAV data to the file
-        with open(temp_file.name, 'wb') as f:
-            f.write(wav_data)
-
-        return temp_file.name
-    except Exception as e:
-        # If an error occurs, close and remove the temporary file
-        temp_file.close()
-        os.unlink(temp_file.name)
-        raise e
-
 def generate_success():
 # Create a sine wave generator
     sine_gen = SineGenerator()
@@ -196,10 +156,7 @@ def generate_success():
     melody.add_note(note_e, start_time_ms=80)  # Overlaps with C
     melody.add_note(note_g, start_time_ms=160)  # Starts when C and E end
 
-
-# Create a temporary WAV file
-    temp_wav_path = melody_to_temp_wav(melody, "success")
-    return temp_wav_path
+    return melody.generate_sound()
 
 def generate_reverse_success():
 # Create a sine wave generator
@@ -222,10 +179,7 @@ def generate_reverse_success():
     melody.add_note(note_e, start_time_ms=80)
     melody.add_note(note_c, start_time_ms=160)
 
-
-# Create a temporary WAV file
-    temp_wav_path = melody_to_temp_wav(melody, "reverse-success")
-    return temp_wav_path
+    return melody.generate_sound()
 
 def generate_failure():
 # Create a sine wave generator
@@ -248,31 +202,18 @@ def generate_failure():
     melody.add_note(note_g, start_time_ms=160)
     melody.add_note(note_g_sharp, start_time_ms=160)
 
+    return melody.generate_sound()
 
-# Create a temporary WAV file
-    temp_wav_path = melody_to_temp_wav(melody, "failure")
-    return temp_wav_path
-
-def play_wav(file_path):
-    os.system(f"paplay {file_path}")
-
-# Create a temporary WAV file
-success_temp_file = generate_success()
-
-# Create a temporary WAV file
-failure_temp_file = generate_failure()
-
-def success_chime():
-    play_wav(success_temp_file)
-
-def failure_chime():
-    play_wav(failure_temp_file)
+# Generate the sounds
+mixer.init(frequency=44100, size=-16, channels=1)
+success_sound = generate_success()
+failure_sound = generate_failure()
 
 def play_sound(sound_name: str):
     if sound_name == "success":
-        success_chime()
+        success_sound.play()
     elif sound_name == "failure":
-        failure_chime()
+        failure_sound.play()
 
 class Sound(Event):
     def __init__(self, sender, name: str):
