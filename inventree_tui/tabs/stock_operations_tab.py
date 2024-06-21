@@ -50,8 +50,13 @@ class StockAdjustmentScreen(ModalScreen):
         super().__init__()
         self.dialog_title = f"Adjust Stock: {self.item.title_name()} ({method})"
 
+        operations = {
+            "add":"Adding to",
+            "remove":"Removing from",
+            "count":"Counting",
+        }
         def sound_fn():
-            tts(f"{item.part.name}").play()
+            tts(f"{operations[method]} {item.part.name}").play()
         self.post_message(Sound(self, fn=sound_fn))
 
     def compose(self) -> ComposeResult:
