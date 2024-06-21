@@ -276,7 +276,7 @@ class StockOpsTab(Container):
             whitelist=[StockItem],
             placeholder="Scan Items",
             input_id="stock_ops_item_input",
-            autocomplete=False
+            autocomplete=False,
         )
         with MyRadioSet(id="stock_ops_radio_set"):
             yield RadioButton("Remove", value=True, name="remove")

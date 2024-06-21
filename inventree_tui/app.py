@@ -25,6 +25,7 @@ from .tabs import (
     PartSearchTab,
     StockOpsTab
 )
+from .sound import Sound, play_sound
 
 logging.basicConfig(
     level="NOTSET",
@@ -62,6 +63,7 @@ class InventreeApp(App):
         dialog = ErrorDialogScreen()
         dialog.title = event.title
         dialog.exception_message = event.message
+        self.play_sound("failure")
         await self.push_screen(dialog)
 
 
@@ -109,3 +111,11 @@ InvenTree TUI up to date ({current_version})"""))
         _input = cast(Input, self.query_one("#transfer_destination_input"))
         _input.focus()
         self.call_after_refresh(self.initialization)
+
+
+    @work(exclusive=True, thread=True)
+    def play_sound(self, sound_name: str):
+        play_sound(sound_name)
+
+    def on_sound(self, event: Sound):
+        self.play_sound(event.name)

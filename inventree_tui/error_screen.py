@@ -5,7 +5,6 @@ from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import Button, Static
 
-
 class ErrorDialogScreen(Screen):
     title = reactive("")
     exception_message = reactive("")

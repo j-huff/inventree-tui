@@ -17,7 +17,9 @@ setup(
         "textual-autocomplete==2.1.0b0",
         "fuzzywuzzy",
         "setuptools",
-        "httpx"
+        "httpx",
+        "numpy",
+        "wave",
     ],
     entry_points={
         "console_scripts": [

@@ -22,6 +22,7 @@ from textual_autocomplete import (
     InputState
 )
 
+from inventree_tui.sound import Sound
 from inventree_tui.error_screen import IgnorableErrorEvent
 from .base import api, ApiException
 
@@ -108,12 +109,14 @@ class InventreeScanner(Vertical):
         input_id: str | None = None,
         autocomplete: bool = False,
         search: bool = False,
+        sound: bool = True
     ) -> None:
         self.input_id = input_id
         self.whitelist = whitelist if whitelist is not None else []
         self.placeholder = placeholder
         self.autocomplete_enabled = autocomplete
         self.search_enabled = search
+        self.sound = sound
         self.search_cache : Dict[Type[InventreeObject], Dict[str, List[InventreeObject]]] = {}
         self.dropdown = Dropdown(
             items=self.get_dropdown_items
@@ -177,7 +180,11 @@ class InventreeScanner(Vertical):
         except WhitelistException as e:
             self.post_message(IgnorableErrorEvent(self, "Scan Error", str(e)))
             return
+
         self.post_message(self.ItemScanned(self, obj))
+        if self.sound:
+            self.post_message(Sound(self, "success"))
+            print('\a')
 
     @work(exclusive=False, thread=True)
     async def search_single_item(self, text: str) -> None:
