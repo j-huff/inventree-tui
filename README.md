@@ -11,6 +11,7 @@ Once installed, launch the TUI using the command `inventree-tui` or by running t
 
 ## Configuration
 
+### Via environment variables
 To run inventree-tui, you must set the following environment variables: `INVENTREE_API_HOST`, `INVENTREE_API_TOKEN`
 
 You can also set these in a file named `.env`:
@@ -20,6 +21,16 @@ You can also set these in a file named `.env`:
 INVENTREE_API_HOST=https://example.com/
 INVENTREE_API_TOKEN=inv-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-xxxxxxxx
 ```
+
+Once this file has been created or you have manually set your environment variables, you can run simply Inventree TUI with the command `inventree-tui`.
+
+### Via YAML config file
+
+For finer control over the configuration, and for enabling certain features such as sound and TTS, you should run Inventree TUI using a YAML configuration file.
+
+To create a YAML file with the default Inventree TUI configuration, run the command `inventree-tui generate-config`. This will create a file called `config.yaml`. Open this file in your favourite editor and modify. If you still want to load your API Host and API Key from the `.env` file, you should remove the `inventree_api_host` and `inventree_api_token` lines. Settings loaded from the YAML file take precedence over environment variables.
+
+One the YAML file has been created and modified, you can run Inventree TUI using the configuration with the command `inventree-tui app -c config.yaml`.
 
 ## Usage
 
