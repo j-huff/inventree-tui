@@ -28,7 +28,7 @@ Once this file has been created or you have manually set your environment variab
 
 For finer control over the configuration, and for enabling certain features such as sound and TTS, you should run Inventree TUI using a YAML configuration file.
 
-To create a YAML file with the default Inventree TUI configuration, run the command `inventree-tui generate-config`. This will create a file called `config.yaml`. Open this file in your favourite editor and modify. If you still want to load your API Host and API Key from the `.env` file, you should remove the `inventree_api_host` and `inventree_api_token` lines. Settings loaded from the YAML file take precedence over environment variables.
+To create a YAML file with the default Inventree TUI configuration, run the command `inventree-tui generate-config`. This will create a file called `config.yaml`. Open this file in your favourite editor and modify it. If you still want to load your API Host and API Key from the `.env` file, you should remove the `inventree_api_host` and `inventree_api_token` lines. Settings loaded from the YAML file take precedence over environment variables.
 
 One the YAML file has been created and modified, you can run Inventree TUI using the configuration with the command `inventree-tui app -c config.yaml`.
 
@@ -55,6 +55,12 @@ This tab is used for transferring stock items to a different location. First, sc
 This tab is used for transferring stock items to their default locations. Simply scan an item barcode and confirm the transfer with the pop-up dialog. A history of checked-in items is kept for convient reference, and can be cleared using the `Clear History` button.
 
 <img src="assets/images/screenshots/check_in_items_tab.png" alt="Screenshot of check-in items tab " width="400" height="auto" />
+
+### Stock Ops Tab
+
+The Stock Ops (Stock Operations) tab is used for making stock adjustments. The available methods are `add`, `remove`, and `count`. The table on this tab shows your stock tracking history.
+
+<img src="assets/images/screenshots/stock_ops_tab.png" alt="Screenshot of stock operations tab " width="400" height="auto" />
 
 ### Part Search Tab
 
