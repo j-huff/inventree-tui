@@ -10,7 +10,8 @@ class NullSound():
         pass
 
 if settings.sound_enabled:
-    from .generation import tts as _tts
+    if settings.tts_enabled:
+        from .generation import tts as _tts
     from .chimes import success as success_chime, failure as failure_chime
     #import .generation as generation
     # Generate the sounds
