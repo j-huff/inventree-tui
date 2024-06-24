@@ -1,10 +1,11 @@
-app_name: "My Inventree TUI"
-sound_enabled: True
-tts_enabled: True
-stock_ops_tab:
-  history_chunk_size: 5
-  history_delta_minutes: 0
-  history_delta_hours: 8
-  history_delta_days: 1
-part_search_tab:
-  auto_expand: 1
+app_name: 'InvenTree TUI'  # Name of the application
+sound_enabled: True        # Enable sound effects
+tts_enabled: True          # Enable text-to-speech
+check_for_updates: True    # Check for updates to the PyPi package on startup
+part_search_tab:           # Settings for the part search tab
+  auto_expand: 5           # Number of items to auto-expand in the part search tab
+stock_ops_tab:             # Settings for the stock operations tab
+  history_delta_minutes: 0 # Minutes to look back in history
+  history_delta_hours: 8   # Hours to look back in history
+  history_delta_days: 0    # Days to look back in history
+  history_chunk_size: 10   # Number of history items to fetch every API call
