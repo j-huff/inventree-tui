@@ -86,15 +86,34 @@ class CachedStockItemRowModel(RowBaseModel):
         return f"Stock #{self.stock_number}"
 
 
-def transfer_items(items: List[CachedStockItem], location: StockLocation):
+def transfer_items(items: List[CachedStockItem], location: StockLocation, default_location : bool = False):
     _items = []
     for item in items:
+        if item.stock_item.location == location.pk:
+            continue #already at that location, dont include
         _items.append({"pk":item.pk, "quantity": item.quantity})
         if item.quantity != item.original_quantity:
             #TODO: implement a screen that will help you deal with the stock splits
             raise NotImplementedError("Quantity other that 'ALL' not implemented (yet)")
 
-    StockItem.adjustStockItems(api, method='transfer', items=_items, location=location.pk)
+
+    s = "s" if len(items) > 1 else ""
+    messages = [f"Transferred {len(items)} stock item{s} to {location.name}."]
+
+    if default_location:
+        for item in items:
+            if item.part.default_location == location.pk:
+                continue
+            #item.part.default_location = location.pk
+            item.part.save(data={"default_location": location.pk})
+        messages.append(f"Default location{s} updated.")
+
+    if len(_items) > 0:
+        StockItem.adjustStockItems(api, method='transfer', items=_items, location=location.pk)
+
+    return " ".join(messages)
+
+
 
 class CachedStockItemRow(CachedStockItemRowModel):
     cached_stock_item: CachedStockItem = Field(frozen=True)

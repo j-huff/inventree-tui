@@ -121,10 +121,15 @@ class TransferItemsTab(Container):
 
             table_data = cast(List[CachedStockItemRow], table.data.values())
             items = [row.item for row in table_data]
-            transfer_items(items, destination)
 
-            s = "s" if len(items) > 1 else ""
-            self.post_message(StatusChanged(self, f"Transferred {len(items)} stock item{s} to {destination.name}"))
+            checkboxes = self.query_one("#transfer_options_container").query(Checkbox)
+            options = {}
+            for checkbox in checkboxes:
+                options[checkbox.name] = checkbox.value
+
+            message = transfer_items(items, destination, **options)
+
+            self.post_message(StatusChanged(self, message))
             await table.clear_data()
 
         elif event.button.id == "cancel_button":
