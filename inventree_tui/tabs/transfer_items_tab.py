@@ -44,7 +44,7 @@ class TransferItemsTab(Container):
             sound=False
         )
         with CheckboxSet(id="transfer_options_container"):
-            yield Checkbox("Default Location", name="default_location")
+            yield Checkbox("Set as default location", name="default_location")
             #yield Checkbox("Other Opt", name="default_location")
         with Horizontal():
             yield ModelDataTable(
