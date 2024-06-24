@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     app_name: str = Field("InvenTree TUI", description="Name of the application")
     sound_enabled: bool = Field(False, description="Enable sound effects")
     tts_enabled: bool = Field(False, description="Enable text-to-speech")
+    check_for_updates: bool = Field(True, description="Check for updates to the PyPi package on startup")
 
     inventree_api_host: str | None = Field(None, env="API_HOST", description="InvenTree API host URL")
     inventree_api_token: str | None = Field(None, env="API_TOKEN", description="InvenTree API token")

@@ -104,7 +104,8 @@ InvenTree TUI up to date ({current_version})"""))
             self.app_status_text.update(status_message)
 
     def initialization(self):
-        self.check_for_updates()
+        if settings.check_for_updates:
+            self.check_for_updates()
 
     def on_mount(self):
         _input = cast(Input, self.query_one("#transfer_destination_input"))
