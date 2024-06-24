@@ -9,3 +9,5 @@ stock_ops_tab:             # Settings for the stock operations tab
   history_delta_hours: 8   # Hours to look back in history
   history_delta_days: 0    # Days to look back in history
   history_chunk_size: 10   # Number of history items to fetch every API call
+log_level: 'WARNING'       # Minimum level for logging.
+log_filename: null         # Output to log file. Disabled by default.

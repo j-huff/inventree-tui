@@ -35,6 +35,9 @@ class Settings(BaseSettings):
         env_file_encoding='utf-8'
     )
 
+    log_level: str = Field("WARNING", description="Minimum level for logging.")
+    log_filename: None | str = Field(None, description="Output to log file. Disabled by default.")
+
     @classmethod
     def from_yaml(cls, yaml_file: str):
         with open(yaml_file, "r") as f:

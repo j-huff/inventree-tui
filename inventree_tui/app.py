@@ -28,9 +28,15 @@ from .tabs import (
 from inventree_tui.sound import Sound, play_sound
 from inventree_tui.settings import settings
 
+handlers = [TextualHandler()]
+if settings.log_filename is not None:
+    file_handler = logging.FileHandler(settings.log_filename)
+    file_handler.setLevel(settings.log_level)
+    handlers.append(file_handler)
+
 logging.basicConfig(
-    level="NOTSET",
-    handlers=[TextualHandler()],
+    level=settings.log_level,
+    handlers=handlers,
 )
 
 class InventreeApp(App):
