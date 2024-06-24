@@ -40,12 +40,20 @@ class Settings(BaseSettings):
             yaml_data = yaml.safe_load(f)
         return cls(**yaml_data)
 
+    def update_from_yaml(self, yaml_data: dict):
+        for field, value in yaml_data.items():
+            if hasattr(self, field) and getattr(self, field) is None:
+                setattr(self, field, value)
+        return self
+
 # Create a global instance of the settings
 settings = Settings()
 
 def load_yaml_config(yaml_file: str):
     global settings
-    settings = Settings.from_yaml(yaml_file)
+    with open(yaml_file, "r") as f:
+        yaml_data = yaml.safe_load(f)
+    settings = settings.update_from_yaml(yaml_data)
 
 def generate_default_settings(filename: str):
     # Create a default Settings instance
