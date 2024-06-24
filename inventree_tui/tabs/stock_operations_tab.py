@@ -143,9 +143,9 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
     stock_pk: int = Field(frozen=True)
     pk: int = Field(frozen=True)
     label: str = Field(frozen=True)
-    short_label: str = Field(frozen=True)
+    short_label_: str = Field(frozen=True)
     part_name: str = Field(frozen=False)
-    op_string: str = Field(frozen=True)
+    op_string_: str = Field(frozen=True)
     info: str = Field(frozen=True)
 
     timestamp: datetime = Field(frozen=True)
@@ -161,11 +161,11 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
             timestamp_str = item.datetime_string(),
             info = item.to_string(),
             label = obj.label,
-            short_label = item.short_label(),
+            short_label_ = item.short_label(),
             stock_pk = obj.item,
             part_name = "loading...", #item.stock_item.part.name,
             pk = obj.pk,
-            op_string = item.op_string(),
+            op_string_ = item.op_string(),
             timestamp = item.datetime()
         )
 
@@ -181,8 +181,8 @@ class CachedStockItemTrackingRowModel(RowBaseModel, CachedStockItemTracking):
             "stock_pk": "Stk#",
             "part_name": "Part",
             "label": None,
-            "short_label": "Label",
-            "op_string": "Info",
+            "short_label_": "Label",
+            "op_string_": "Info",
             "info": None,
             "obj": None,
         }
