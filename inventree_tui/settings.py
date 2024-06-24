@@ -66,11 +66,14 @@ def generate_default_settings(filename: str):
 def generate_yaml_with_inline_comments(data, obj):
     no_comments = generate_yaml_with_inline_comments_helper(data, obj, indent=0, with_comments=False)
     lines = no_comments.split('\n')
+    max_max_width = 34
     max_width = 0
     for line in lines:
+        if len(line) > max_max_width:
+            continue
         max_width = max(len(line), max_width)
 
-    with_comments = generate_yaml_with_inline_comments_helper(data, obj, indent=0, with_comments=True, align_comments_column=max_width+1)
+    with_comments = generate_yaml_with_inline_comments_helper(data, obj, indent=0, with_comments=True, align_comments_column=max_width)
 
     return with_comments
 
@@ -82,7 +85,7 @@ def generate_yaml_with_inline_comments_helper(data, obj, indent=0, with_comments
         if with_comments and isinstance(obj, BaseModel) and key in obj.model_fields:
             field = obj.model_fields[key]
             if field.description:
-                comment = f"# {field.description}"
+                comment = f" # {field.description}"
         indent_s = f"{' ' * indent}"
 
         if isinstance(value, dict):
