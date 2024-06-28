@@ -45,11 +45,11 @@ from inventree_tui.settings import settings
 class StockAdjustmentScreen(ModalScreen):
     dialog_title = reactive("Row Edit", recompose=True)
 
-    def __init__(self, item, method):
+    def __init__(self, item : CachedStockItem, method):
         self.item = item
         self.method = method
         super().__init__()
-        self.dialog_title = f"Adjust Stock: {self.item.title_name()} ({method})"
+        self.dialog_title = f"Adjust Stock: {self.item.title_name()} ({self.item.part.name})"
 
         operations = {
             "add":"Adding to",
