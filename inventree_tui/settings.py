@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     stock_ops_tab: StockOpsTabSettings = Field(default_factory=StockOpsTabSettings, description="Settings for the stock operations tab")
 
     model_config = SettingsConfigDict(
-        env_prefix='INVENTREE_',
         env_file='.env',
         env_file_encoding='utf-8'
     )
