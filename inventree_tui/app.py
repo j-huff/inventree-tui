@@ -144,3 +144,5 @@ InvenTree TUI up to date ({current_version})"""))
     def action_show_tab(self, tab: str) -> None:
         """Switch to a new tab."""
         self.get_child_by_type(TabbedContent).active = tab
+        # Select the first input field in the tab
+        self.query(f'#{tab} Input').first().focus()
