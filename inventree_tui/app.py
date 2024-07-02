@@ -5,7 +5,7 @@ import importlib
 import httpx
 
 from textual import work
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, Binding
 from textual.containers import Vertical
 from textual.logging import TextualHandler
 from textual.reactive import reactive
@@ -42,6 +42,12 @@ logging.basicConfig(
 class InventreeApp(App):
     CSS_PATH = "styles.tcss"
     TITLE = settings.app_name
+    BINDINGS = [
+        Binding("ctrl+t", "show_tab('transfer-items-tab')", "Transfer", priority=True),
+        Binding("ctrl+s", "show_tab('stock-ops-tab')", "Stock Ops", priority=True),
+        Binding("ctrl+p", "show_tab('part-search-tab')", "Part Search", priority=True),
+        Binding("ctrl+i", "show_tab('checkin-items-tab')", "Check-In", priority=True),
+    ]
 
     status_message = reactive("")
 
@@ -134,3 +140,7 @@ InvenTree TUI up to date ({current_version})"""))
             self.play_sound(event.name)
         if event.fn is not None:
             self.play_sound_fn(event.fn)
+
+    def action_show_tab(self, tab: str) -> None:
+        """Switch to a new tab."""
+        self.get_child_by_type(TabbedContent).active = tab
