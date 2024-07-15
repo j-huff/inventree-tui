@@ -4,7 +4,7 @@ long_description = open("README.md").read()
 
 setup(
     name="inventree-tui",
-    version="0.2.0",
+    version="0.2.1",
     auther="John Huff",
     description="Terminal UI for InvenTree",
     url='https://github.com/j-huff/inventree-tui',
